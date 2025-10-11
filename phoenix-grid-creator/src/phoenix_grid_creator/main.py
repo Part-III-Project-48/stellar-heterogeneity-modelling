@@ -1,16 +1,19 @@
 # this is going to download our data that meets some desired data ranges
 # this file should just be run once when you want to create the data grid
+# this file defines the filename formats used by PHOENIX in a readable way
 
 import requests
+from tqdm import tqdm
+
+import numpy as np
 
 import astropy as ap
 from astropy import units as u
+from itertools import product
 
 # working example
 # url = "https://phoenix.astro.physik.uni-goettingen.de/data/HiResFITS/PHOENIX-ACES-AGSS-COND-2011/Z-0.0/lte06000-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits"
 # filename = "lte06000-4.50-0.0.PHOENIX.fits"
-
-# define filename formats
 
 GRID : str = "PHOENIX-ACES-AGSS-COND-2011"
 
@@ -49,7 +52,8 @@ def get_file_name(lte : bool,
 	# 2 d.p, unsigned
 	log_g = f"{log_g:.2f}"
 
-	# 1 d.p., signed
+	# 1 d.p., signed (and 0.0 is rendered as -0.0, not +0.0)
+	FeH = -0.0 if FeH == 0 else FeH
 	FeH = f"{FeH:+.1f}"
 
 	# 2d.p.; signed
@@ -75,24 +79,32 @@ def get_url(file_name : str) -> str:
 	url = f"https://phoenix.astro.physik.uni-goettingen.de/data/HiResFITS/{file_name}"
 	return url
 
-T_eff = 2400
-log_g = 2.00
-FeH = -0.5
-alphaM = +0.00
+T_effs = np.arange(2300, 4000, 100)
+FeHs = np.arange(-0.5, 0.5, 0.5)
+log_gs = np.arange(3.5, 5.5, 0.5)
+alphaM = 0
+lte : bool = True
 
-file = get_file_name(True, T_eff, log_g, FeH, alphaM)
-url = get_url(file)
-
-print(f"\n filename: {url} \n")
 file_name_to_save : str = "example.fits"
 
-response = requests.get(url)
-response.raise_for_status()
+total_number_of_files : int = len(T_effs) * len(FeHs) * len(log_gs)
 
-with open("example.fits", "wb") as f:
-	f.write(response.content)
+for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=total_number_of_files, desc="Downloading spectra"):
+	file = get_file_name(lte, T_eff, log_g, FeH, alphaM)
+	url = get_url(file)
+	
+	try:
+		response = requests.get(url)
+		response.raise_for_status()
+	except requests.exceptions.HTTPError as e:
+		print("---")
+		print(f"HTTPError raised with the following parameters.\nlte: {lte}\nT_eff={T_eff}\nlog_g={log_g}\nFeH={FeH}\nalphaM={alphaM}\n continuing with the next file")
+		print(f"url = {url}")
+		print("---")
+		continue
 
-print("Download complete:", file_name_to_save)
+	with open("example.fits", "wb") as f:
+		f.write(response.content)
 
 # with ap.io.fits.open(fits_image_filename) as hdul:
 

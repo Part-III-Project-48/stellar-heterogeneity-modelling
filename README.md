@@ -2,6 +2,7 @@
 
 Cambridge Part III Project 48
 
+PHOENIX homepage : [link](https://phoenix.astro.physik.uni-goettingen.de/)
 PHOENIX reference paper : [link](https://arxiv.org/abs/1303.5632v2)
 
 # Conventions
