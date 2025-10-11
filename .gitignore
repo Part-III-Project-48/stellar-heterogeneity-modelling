@@ -1,6 +1,7 @@
 # ignore all fits files everywhere - they are big
 **/*.fits
-*.fits
 
-*.h5
 **/*.h5
+**/*.hdf5
+
+**/*.pyc

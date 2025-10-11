@@ -26,7 +26,7 @@ def get_file_name(lte : bool,
 	if not (-0.2 <= alphaM <= 1.2 and alphaM % 0.2 == 0):
 		raise ValueError("alphaM value not in range or of incorrect step")
 	
-	### --- check for data availability here --- ###
+	### --- check for data availability --- ###
 	
 	if (not -3.0 <= FeH <= 0.0) and alphaM != 0:
 		raise ValueError("Alpha element abundances [α/M]≠0 are available for -3.0≤[Fe/H]≤0.0. only.")
@@ -41,7 +41,7 @@ def get_file_name(lte : bool,
 	# 2 d.p, unsigned
 	log_g = f"{log_g:.2f}"
 
-	# 1 d.p., signed (and 0.0 is rendered as -0.0, not +0.0)
+	# 1 d.p., signed (and 0.0 is rendered as -0.0, not +0.0, for some reason)
 	FeH = -0.0 if FeH == 0 else FeH
 	FeH = f"{FeH:+.1f}"
 

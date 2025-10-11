@@ -9,6 +9,8 @@ NOTE: the ftp links on the PHOENIX website are broken. Converting the format to 
  
 # Conventions
 
+I've tried to use .hdf5 and not use .h5, just to keep things simple. (although before commit 6cc4ecd I used .h5, and it doesn't really matter, the files themself are all the same anyway)
+
 ## Commit Types
 
 - **`feat`**: A new feature  

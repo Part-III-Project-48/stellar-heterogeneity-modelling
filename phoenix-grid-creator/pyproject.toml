@@ -15,7 +15,8 @@ dependencies = [
     "pandas (>=2.3.3,<3.0.0)",
     "tables (>=3.10.2,<4.0.0)",
     "matplotlib (>=3.10.7,<4.0.0)",
-    "specutils (>=2.2.0,<3.0.0)"
+    "specutils (>=2.2.0,<3.0.0)",
+    "h5py (>=3.14.0,<4.0.0)"
 ]
 
 [tool.poetry]
