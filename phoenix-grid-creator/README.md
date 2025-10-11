@@ -33,13 +33,17 @@ wget https://phoenix.astro.physik.uni-goettingen.de/data/HiResFITS/WAVE_PHOENIX-
 
 This .fits contains 1x HDU which contains 1D data. The length of this 1D array is the same as the length for all the spectral data; and the values in this array is the corresponding wavelength for the index. i.e. this file maps index -> wavelength (angstroms)
 
-Then to create the HDF5 file, just run `phoenix-grid-creator/src/phoenix-grid-creator/main.py`.
+Then to create the HDF5 file, just run `phoenix-grid-creator/src/phoenix-grid-creator/fits_to_hdf5.py`.
 
 # Downloading other .fits files
 
 All .fits files are gitignored currently. This means that the wavelength grid is NOT stored in this repo and must be downloaded locally (e.g. into assets/) before recreating the HDF5 spectra grid.
 
-All other spectra downloads are performed automatically by main.py (currently), and the file format conventions for the spectra can just be read directly from within main.py.
+All other spectra downloads are performed automatically by fits_to_hdf5.py (currently), and the file format conventions for the spectra can just be read directly from within PHOENIX_filename_conventions.py.
 
 working example url format:
 https://phoenix.astro.physik.uni-goettingen.de/data/HiResFITS/PHOENIX-ACES-AGSS-COND-2011/Z-0.0/lte06000-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits
+
+# Notes
+
+- the only wavelength grid I can find is WAVE (not the AWAV) which is specified as VACUUM wavelengths. astropy specutils is used to convert from vacuum to air wavelength (this apparently has a low error)
