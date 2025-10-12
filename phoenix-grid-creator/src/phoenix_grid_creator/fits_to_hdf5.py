@@ -25,6 +25,10 @@ LOGG_COLUMN = "log_g / log(cm s^(-2))"
 WAVELENGTH_COLUMN = "wavelength / angstroms"
 FLUX_COLUMN = "flux / counts"
 
+HDF5_FILENAME_TO_SAVE : str = 'data.hdf5'
+
+DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = 10
+
 if __name__ == "__main__":
 	# read in the wavelength (1D) grid so we can save this into our mega-grid correctly
 
@@ -40,7 +44,7 @@ if __name__ == "__main__":
 		WAVELENGTH_GRID_HDU_INDEX = 0
 		wavelengths = hdul[WAVELENGTH_GRID_HDU_INDEX].data
 		
-		print("wavelength grid found & loaded in")
+		print("[PHOENIX GRID CREATOR] : wavelength grid found & loaded in")
 
 
 	# now define the ranges for the data we want (and save this to a hdf5 file)
@@ -59,9 +63,12 @@ if __name__ == "__main__":
 	i = 0
 
 	for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=total_number_of_files, desc="Downloading spectra"):
-		i += 1
-		if i >= 2:
+		
+		if i >= DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD:
 			break
+		
+		i += 1
+		
 		file = get_file_name(lte, T_eff, log_g, FeH, alphaM)
 		url = get_url(file)
 		
@@ -98,6 +105,10 @@ if __name__ == "__main__":
 				WAVELENGTH_COLUMN : wavelengths,
 				FLUX_COLUMN : fluxes
 			})
+			
+			# this might be quicker to stream data to disc rather than creating a massive df
+			# temp_df.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True, append=True)
+			# continue
 			
 			# avoid warning about concat-ing an empty df
 			if not df.empty:
@@ -148,13 +159,17 @@ if __name__ == "__main__":
 
 	## [SOME INTERPOLATION HERE] ##
 	
-	# add some metadata if you want to the QTable e.g. (wavelength medium = air, source, date)
+	# add some metadata to the QTable e.g. (wavelength medium = air, source, date)
 	import datetime
 	
 	table.meta = {"wavelength medium" : "air",
 			   "source" : "https://phoenix.astro.physik.uni-goettingen.de/data/",
 			   "date this hdf5 file was created" : datetime.datetime.now()}
 	
-	table.write('data.hdf5', path='data', serialize_meta=True, overwrite=True)
+	print("[PHOENIX GRID CREATOR] : writing dataframe to hdf5...")
+	
+	table.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True)
+	
+	print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
 
 	# df.to_hdf('data.h5', key='df', mode='w')
