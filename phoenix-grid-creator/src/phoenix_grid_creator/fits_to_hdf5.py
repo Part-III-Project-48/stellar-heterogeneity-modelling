@@ -43,6 +43,8 @@ if __name__ == "__main__":
 		# there is only 1 HDU in this wavelength grid file
 		WAVELENGTH_GRID_HDU_INDEX = 0
 		wavelengths = hdul[WAVELENGTH_GRID_HDU_INDEX].data
+		# the fits file is big endian; pandas requires little endian. this swaps between them
+		wavelengths = wavelengths.byteswap().view(wavelengths.dtype.newbyteorder())
 		
 		print("[PHOENIX GRID CREATOR] : wavelength grid found & loaded in")
 
@@ -96,6 +98,9 @@ if __name__ == "__main__":
 			
 			fluxes = hdul[SPECTRA_HDU_INDEX].data
 			
+			# for some reason, the fits file is big-endian; pandas required little-endian
+			fluxes = fluxes.byteswap().view(fluxes.dtype.newbyteorder())
+			
 			# pandas will repeat the constant values len(fluxes) times for us
 			temp_df = pd.DataFrame({
 				TEFF_COLUMN : T_eff,
@@ -105,6 +110,13 @@ if __name__ == "__main__":
 				WAVELENGTH_COLUMN : wavelengths,
 				FLUX_COLUMN : fluxes
 			})
+			
+			# the wavelength in the df is currently in angstroms (we add units to an astropy QTable later)
+			
+			# MIN_WAVELENGTH_ANGSTROMS : float = 0.5 * 10**(-6) * 10**(10)
+			# MAX_WAVELENGTH_ANGSTROMS : float = 15 * 10**(-6) * 10**(10)
+			
+			# temp_df = temp_df[(MIN_WAVELENGTH_ANGSTROMS <= temp_df[WAVELENGTH_COLUMN]) & (temp_df[WAVELENGTH_COLUMN] <= MAX_WAVELENGTH_ANGSTROMS)]
 			
 			# this might be quicker to stream data to disc rather than creating a massive df
 			# temp_df.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True, append=True)
