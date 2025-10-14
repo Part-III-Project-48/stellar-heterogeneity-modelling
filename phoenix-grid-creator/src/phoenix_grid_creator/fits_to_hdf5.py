@@ -15,10 +15,12 @@ from astropy import units as u
 from astropy.table import Table
 from itertools import product
 from pathlib import Path
+import scipy
 
 # internal imports
 from PHOENIX_filename_conventions import *
 
+# column names
 TEFF_COLUMN = "T_eff / K"
 FEH_COLUMN = "Fe/H / relative to solar"
 LOGG_COLUMN = "log_g / log(cm s^(-2))"
@@ -26,6 +28,15 @@ WAVELENGTH_COLUMN = "wavelength / angstroms"
 FLUX_COLUMN = "flux / counts"
 
 HDF5_FILENAME_TO_SAVE : str = 'data.hdf5'
+
+# flags
+REGULARISE_WAVELENGTH_GRID : bool = True
+# the wavelength in the df starts out in angstroms (we add units to an astropy QTable later)
+MIN_WAVELENGTH_ANGSTROMS : float = 0.5 * 10**(-6) * 10**(10)
+MAX_WAVELENGTH_ANGSTROMS : float = 15 * 10**(-6) * 10**(10)
+regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_ANGSTROMS, 100)
+
+# REGULARISE_TEMPERATURE_GRID : bool = False
 
 DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = 10
 
@@ -111,12 +122,18 @@ if __name__ == "__main__":
 				FLUX_COLUMN : fluxes
 			})
 			
-			# the wavelength in the df is currently in angstroms (we add units to an astropy QTable later)
-			
-			# MIN_WAVELENGTH_ANGSTROMS : float = 0.5 * 10**(-6) * 10**(10)
-			# MAX_WAVELENGTH_ANGSTROMS : float = 15 * 10**(-6) * 10**(10)
-			
-			# temp_df = temp_df[(MIN_WAVELENGTH_ANGSTROMS <= temp_df[WAVELENGTH_COLUMN]) & (temp_df[WAVELENGTH_COLUMN] <= MAX_WAVELENGTH_ANGSTROMS)]
+			if REGULARISE_WAVELENGTH_GRID:
+				# linear interpolate the fluxes onto a specified grid (this can easily be changed for cubic splines etc if needed)
+				temp_df = temp_df[(MIN_WAVELENGTH_ANGSTROMS <= temp_df[WAVELENGTH_COLUMN]) & (temp_df[WAVELENGTH_COLUMN] <= MAX_WAVELENGTH_ANGSTROMS)]
+				
+				temp_df = pd.DataFrame({
+					TEFF_COLUMN : T_eff,
+					FEH_COLUMN : FeH,
+					LOGG_COLUMN : log_g,
+					# need to use the row index <-> wavelength map provided to us by PHOENIX
+					WAVELENGTH_COLUMN : regularised_wavelengths,
+					FLUX_COLUMN : np.interp(regularised_wavelengths, temp_df[WAVELENGTH_COLUMN], temp_df[FLUX_COLUMN])
+				})
 			
 			# this might be quicker to stream data to disc rather than creating a massive df
 			# temp_df.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True, append=True)
@@ -128,7 +145,7 @@ if __name__ == "__main__":
 				df = pd.concat([df, temp_df], ignore_index=True)#, sort=True)
 			else:
 				df = temp_df
-			
+				
 			# tqdm.write("df length = " + str(df.shape[0]))
 			# print(df.tail())
 	
