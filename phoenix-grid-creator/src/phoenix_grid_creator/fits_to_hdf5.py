@@ -30,7 +30,21 @@ FLUX_COLUMN = "flux / counts"
 
 HDF5_FILENAME_TO_SAVE : str = 'new.hdf5'
 
-# flags
+# data to request (these numbers have to be included in the PHOENIX dataset; view PHOENIX_filename_conventions.py for which are allowed)
+T_effs = np.arange(2300, 4001, 100)
+FeHs = np.arange(-0.5, 0.6, 0.5)
+log_gs = np.arange(3.5, 5.6, 0.5)
+
+#debug override for testing
+T_effs = np.array([2300, 2400, 2500])
+FeHs = np.array([0, 0.5])
+log_gs = np.array([4, 5])
+
+alphaM = 0
+# seems like the only data I can find is LTE data (?)
+lte : bool = True
+
+### flags ###
 REGULARISE_WAVELENGTH_GRID : bool = True
 # the wavelength in the df starts out in angstroms (we add units to an astropy QTable later)
 MIN_WAVELENGTH_ANGSTROMS : float = 0.5 * 10**(-6) * 10**(10)
@@ -38,6 +52,14 @@ MAX_WAVELENGTH_ANGSTROMS : float = 15 * 10**(-6) * 10**(10)
 WAVELENGTH_NUMBER_OF_POINTS : int = 1000
 regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_ANGSTROMS, WAVELENGTH_NUMBER_OF_POINTS)
 
+# temperature interpolation
+REGULARISE_TEMPERATURE_GRID : bool = True
+MIN_TEMPERATURE_KELVIN = 2300
+MAX_TEMPERATURE_KELVIN = 2500
+TEMPERATURE_RESOLUTION_KELVIN = 5
+regularised_temperatures = np.linspace(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KELVIN, TEMPERATURE_RESOLUTION_KELVIN)
+
+# set to np.inf to ignore
 DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
 
 if __name__ == "__main__":
@@ -60,18 +82,7 @@ if __name__ == "__main__":
 		print("[PHOENIX GRID CREATOR] : wavelength grid found & loaded in")
 
 
-	# now define the ranges for the data we want (and save this to a hdf5 file)
-	
-	T_effs = np.arange(2300, 4001, 100)
-	FeHs = np.arange(-0.5, 0.6, 0.5)
-	log_gs = np.arange(3.5, 5.6, 0.5)
-	
-	#debug override
-	FeHs = [0]
-	log_gs = [4]
-	
-	alphaM = 0
-	lte : bool = True
+	# now use defined ranges for the data we want, process it and save this to a hdf5 file
 
 	total_number_of_files : int = len(T_effs) * len(FeHs) * len(log_gs)
 
@@ -149,14 +160,6 @@ if __name__ == "__main__":
 			else:
 				df = temp_df
 
-	# temperature interpolation
-	REGULARISE_TEMPERATURE_GRID : bool = True
-	MIN_TEMPERATURE_KELVIN = 2300
-	MAX_TEMPERATURE_KELVIN = 4000
-	TEMPERATURE_RESOLUTION_KELVIN = 10
-	regularised_temperatures = np.linspace(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KELVIN, TEMPERATURE_RESOLUTION_KELVIN)
-
-
 	if REGULARISE_TEMPERATURE_GRID:
 		
 		regularised_wavelength_df = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN])
@@ -175,7 +178,7 @@ if __name__ == "__main__":
 				
 				from scipy.interpolate import interp1d
 				
-				pivoted = df.pivot(index=TEFF_COLUMN, columns=WAVELENGTH_COLUMN, values=FLUX_COLUMN)
+				pivoted = subset_df.pivot(index=TEFF_COLUMN, columns=WAVELENGTH_COLUMN, values=FLUX_COLUMN)
 				x = pivoted.index.to_numpy()               # shape (n_temperatures,)
 				wavelengths = pivoted.columns.to_numpy()   # shape (n_wavelengths,)
 				y = pivoted.values
@@ -204,36 +207,53 @@ if __name__ == "__main__":
 		### debug plotting to double check the interpolation worked ###
 
 		# just for plotting
+		# debug_plot_interpolated_temperatures()
+		
 		debug_min_graph_temperature = 2300
 		debug_max_graph_temperature = 3000
 		
+		debug_min_graph_wavelength = 5000
+		debug_max_graph_wavelength = 6000
+		
 		plt.figure(figsize=(10, 5))
+		
+		example_FeH = FeHs[0]
+		example_log_g = log_gs[0]
 		
 		# new (interpolated) T_effs
 		for T_eff in regularised_temperatures[(debug_min_graph_temperature <= regularised_temperatures) & (regularised_temperatures <= debug_max_graph_temperature)]:
-			subset_df = regularised_wavelength_df[regularised_wavelength_df[TEFF_COLUMN] == T_eff]
+			subset_df = regularised_wavelength_df[(regularised_wavelength_df[TEFF_COLUMN] == T_eff) & 
+										 			(regularised_wavelength_df[FEH_COLUMN] == example_FeH) &
+													(regularised_wavelength_df[LOGG_COLUMN] == example_log_g)]
+			
+			subset_df = subset_df[(debug_min_graph_wavelength <= subset_df[WAVELENGTH_COLUMN]) & (subset_df[WAVELENGTH_COLUMN] <= debug_max_graph_wavelength)]
+			
 			plt.plot(subset_df[WAVELENGTH_COLUMN], subset_df[FLUX_COLUMN], linestyle="dashed", label=f"(interpolated) {T_eff}K")
 
 		# old T_effs
 		for T_eff in T_effs[(debug_min_graph_temperature <= T_effs) & (T_effs <= debug_max_graph_temperature)]:
-			subset_df = df[df[TEFF_COLUMN] == T_eff]
+			subset_df = df[(df[TEFF_COLUMN] == T_eff) &
+							(df[FEH_COLUMN] == example_FeH) &
+							(df[LOGG_COLUMN] == example_log_g)]
+			
+			subset_df = subset_df[(debug_min_graph_wavelength <= subset_df[WAVELENGTH_COLUMN]) & (subset_df[WAVELENGTH_COLUMN] <= debug_max_graph_wavelength)]
+			
 			plt.plot(subset_df[WAVELENGTH_COLUMN], subset_df[FLUX_COLUMN], label=f"(actual) {T_eff}K")
 		
 		
-		plt.title("subset of interpolated data")
-		plt.xlim(5000, 6000)
-		plt.ylim(0, 1e13)
+		plt.title(f"subset of interpolated data\nat [Fe/H] = {example_FeH} and log_g = {example_log_g}")
 		plt.xlabel("Wavelength / Angstroms")
 		plt.ylabel("Flux / counts")
 		plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
 		# plt.tight_layout()
 		plt.subplots_adjust(right=0.75)
+		
 		plt.show()
 		
 		### end of debugging plotting ###
 		
 		df = regularised_wavelength_df
-		
+	
 	# pandas tables can't save their metadata into a HDF5 directly (can use HDFStore or smthn) - but astropy tables can have metadata, units etc. so lets convert to an astropy table
 	from astropy.table import QTable
 	table = QTable.from_pandas(df)
