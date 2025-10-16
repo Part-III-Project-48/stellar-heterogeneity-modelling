@@ -35,17 +35,18 @@ T_effs = np.arange(2300, 4001, 100)
 FeHs = np.arange(-0.5, 0.6, 0.5)
 log_gs = np.arange(3.5, 5.6, 0.5)
 
+alphaM = 0
+# seems like the only data I can find is LTE data (?)
+lte : bool = True
+
 #debug override for testing
 T_effs = np.array([2300, 2400, 2500])
 FeHs = np.array([0, 0.5])
 log_gs = np.array([4, 5])
 
-alphaM = 0
-# seems like the only data I can find is LTE data (?)
-lte : bool = True
+# # # flags # # #
 
-### flags ###
-REGULARISE_WAVELENGTH_GRID : bool = True
+REGULARISE_WAVELENGTH_GRID : bool = False
 # the wavelength in the df starts out in angstroms (we add units to an astropy QTable later)
 MIN_WAVELENGTH_ANGSTROMS : float = 0.5 * 10**(-6) * 10**(10)
 MAX_WAVELENGTH_ANGSTROMS : float = 15 * 10**(-6) * 10**(10)
@@ -61,6 +62,69 @@ regularised_temperatures = np.linspace(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_K
 
 # set to np.inf to ignore
 DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
+
+# # # # # #
+
+
+
+# # # # # helper functions # # # # # 
+
+
+
+
+def debug_plot_interpolated_temperatures():
+	DEBUG_MIN_GRAPH_TEMPERATURE = 2300
+	DEBUG_MAX_GRAPH_TEMPERATURE = 3000
+	
+	DEBUG_MIN_GRAPH_WAVELENGTH = 5000
+	DEBUG_MAX_GRAPH_WAVELENGTH = 6000
+	
+	plt.figure(figsize=(10, 5))
+	
+	example_FeH = FeHs[0]
+	example_log_g = log_gs[0]
+	
+	# new (interpolated) T_effs
+	for T_eff in regularised_temperatures[(DEBUG_MIN_GRAPH_TEMPERATURE <= regularised_temperatures) & (regularised_temperatures <= DEBUG_MAX_GRAPH_TEMPERATURE)]:
+		subset_df = regularised_wavelength_df[(regularised_wavelength_df[TEFF_COLUMN] == T_eff) & 
+												(regularised_wavelength_df[FEH_COLUMN] == example_FeH) &
+												(regularised_wavelength_df[LOGG_COLUMN] == example_log_g)]
+		
+		subset_df = subset_df[(DEBUG_MIN_GRAPH_WAVELENGTH <= subset_df[WAVELENGTH_COLUMN]) & (subset_df[WAVELENGTH_COLUMN] <= DEBUG_MAX_GRAPH_WAVELENGTH)]
+		
+		plt.plot(subset_df[WAVELENGTH_COLUMN], subset_df[FLUX_COLUMN], linestyle="dashed", label=f"(interpolated) {T_eff}K")
+
+	# old T_effs
+	for T_eff in T_effs[(DEBUG_MIN_GRAPH_TEMPERATURE <= T_effs) & (T_effs <= DEBUG_MAX_GRAPH_TEMPERATURE)]:
+		subset_df = df[(df[TEFF_COLUMN] == T_eff) &
+						(df[FEH_COLUMN] == example_FeH) &
+						(df[LOGG_COLUMN] == example_log_g)]
+		
+		subset_df = subset_df[(DEBUG_MIN_GRAPH_WAVELENGTH <= subset_df[WAVELENGTH_COLUMN]) & (subset_df[WAVELENGTH_COLUMN] <= DEBUG_MAX_GRAPH_WAVELENGTH)]
+		
+		plt.plot(subset_df[WAVELENGTH_COLUMN], subset_df[FLUX_COLUMN], label=f"(actual) {T_eff}K")
+	
+	
+	plt.title(f"subset of interpolated data\nat [Fe/H] = {example_FeH} and log_g = {example_log_g}")
+	plt.xlabel("Wavelength / Angstroms")
+	plt.ylabel("Flux / counts")
+	plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+	# plt.tight_layout()
+	plt.subplots_adjust(right=0.75)
+	
+	plt.show()
+	
+	
+	
+
+# # # # # # # # # #
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
 	# read in the wavelength (1D) grid so we can save this into our mega-grid correctly
@@ -89,13 +153,13 @@ if __name__ == "__main__":
 	# we will save our grid to this df
 	df = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN])
 
-	i = 0
+	file_number = 0
 
 	for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=total_number_of_files, desc="Downloading .fits spectra files"):
-		if i >= DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD:
+		if file_number >= DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD:
 			break
 		
-		i += 1
+		file_number += 1
 		
 		file = get_file_name(lte, T_eff, log_g, FeH, alphaM)
 		url = get_url(file)
@@ -207,51 +271,11 @@ if __name__ == "__main__":
 		### debug plotting to double check the interpolation worked ###
 
 		# just for plotting
-		# debug_plot_interpolated_temperatures()
-		
-		debug_min_graph_temperature = 2300
-		debug_max_graph_temperature = 3000
-		
-		debug_min_graph_wavelength = 5000
-		debug_max_graph_wavelength = 6000
-		
-		plt.figure(figsize=(10, 5))
-		
-		example_FeH = FeHs[0]
-		example_log_g = log_gs[0]
-		
-		# new (interpolated) T_effs
-		for T_eff in regularised_temperatures[(debug_min_graph_temperature <= regularised_temperatures) & (regularised_temperatures <= debug_max_graph_temperature)]:
-			subset_df = regularised_wavelength_df[(regularised_wavelength_df[TEFF_COLUMN] == T_eff) & 
-										 			(regularised_wavelength_df[FEH_COLUMN] == example_FeH) &
-													(regularised_wavelength_df[LOGG_COLUMN] == example_log_g)]
-			
-			subset_df = subset_df[(debug_min_graph_wavelength <= subset_df[WAVELENGTH_COLUMN]) & (subset_df[WAVELENGTH_COLUMN] <= debug_max_graph_wavelength)]
-			
-			plt.plot(subset_df[WAVELENGTH_COLUMN], subset_df[FLUX_COLUMN], linestyle="dashed", label=f"(interpolated) {T_eff}K")
-
-		# old T_effs
-		for T_eff in T_effs[(debug_min_graph_temperature <= T_effs) & (T_effs <= debug_max_graph_temperature)]:
-			subset_df = df[(df[TEFF_COLUMN] == T_eff) &
-							(df[FEH_COLUMN] == example_FeH) &
-							(df[LOGG_COLUMN] == example_log_g)]
-			
-			subset_df = subset_df[(debug_min_graph_wavelength <= subset_df[WAVELENGTH_COLUMN]) & (subset_df[WAVELENGTH_COLUMN] <= debug_max_graph_wavelength)]
-			
-			plt.plot(subset_df[WAVELENGTH_COLUMN], subset_df[FLUX_COLUMN], label=f"(actual) {T_eff}K")
-		
-		
-		plt.title(f"subset of interpolated data\nat [Fe/H] = {example_FeH} and log_g = {example_log_g}")
-		plt.xlabel("Wavelength / Angstroms")
-		plt.ylabel("Flux / counts")
-		plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
-		# plt.tight_layout()
-		plt.subplots_adjust(right=0.75)
-		
-		plt.show()
+		debug_plot_interpolated_temperatures()
 		
 		### end of debugging plotting ###
 		
+		# this must be set after the debug plotting, as the debug plotting function depends on df and regularised_wavelength_df being distinct
 		df = regularised_wavelength_df
 	
 	# pandas tables can't save their metadata into a HDF5 directly (can use HDFStore or smthn) - but astropy tables can have metadata, units etc. so lets convert to an astropy table
@@ -304,3 +328,7 @@ if __name__ == "__main__":
 	table.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True)
 
 	print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
+
+
+
+
