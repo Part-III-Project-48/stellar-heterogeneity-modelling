@@ -34,11 +34,11 @@ REGULARISE_WAVELENGTH_GRID : bool = True
 # the wavelength in the df starts out in angstroms (we add units to an astropy QTable later)
 MIN_WAVELENGTH_ANGSTROMS : float = 0.5 * 10**(-6) * 10**(10)
 MAX_WAVELENGTH_ANGSTROMS : float = 15 * 10**(-6) * 10**(10)
-regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_ANGSTROMS, 100)
+regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_ANGSTROMS, 10)
 
-# REGULARISE_TEMPERATURE_GRID : bool = False
+REGULARISE_TEMPERATURE_GRID : bool = True
 
-DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = 10
+DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
 
 if __name__ == "__main__":
 	# read in the wavelength (1D) grid so we can save this into our mega-grid correctly
@@ -61,14 +61,22 @@ if __name__ == "__main__":
 
 
 	# now define the ranges for the data we want (and save this to a hdf5 file)
-
-	T_effs = np.arange(2300, 4000, 100)
-	FeHs = np.arange(-0.5, 0.5, 0.5)
-	log_gs = np.arange(3.5, 5.5, 0.5)
+	
+	T_effs = np.arange(2300, 4001, 100)
+	print(T_effs)
+	FeHs = np.arange(-0.5, 0.6, 0.5)
+	log_gs = np.arange(3.5, 5.6, 0.5)
+	
+	#debug override
+	FeHs = [0]
+	log_gs = [4]
+	
 	alphaM = 0
 	lte : bool = True
 
 	total_number_of_files : int = len(T_effs) * len(FeHs) * len(log_gs)
+	
+	print(f"fetching total_number_of_files = {total_number_of_files}")
 
 	# we will save our grid to this df
 	df = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN])
@@ -76,7 +84,6 @@ if __name__ == "__main__":
 	i = 0
 
 	for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=total_number_of_files, desc="Downloading spectra"):
-		
 		if i >= DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD:
 			break
 		
@@ -145,10 +152,67 @@ if __name__ == "__main__":
 				df = pd.concat([df, temp_df], ignore_index=True)#, sort=True)
 			else:
 				df = temp_df
-				
 			# tqdm.write("df length = " + str(df.shape[0]))
 			# print(df.tail())
 	
+	# temperature interpolation
+	
+	MIN_TEMPERATURE_KELVIN = 2300
+	MAX_TEMPERATURE_KELVIN = 4000
+	TEMPERATURE_RESOLUTION_KELVIN = 10
+	regularised_temperatures = np.linspace(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KELVIN, TEMPERATURE_RESOLUTION_KELVIN)
+	
+	if REGULARISE_TEMPERATURE_GRID:
+		
+		new_df = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN])
+		
+		for FeH, log_g in tqdm(product(FeHs, log_gs), total= len(FeHs) * len(log_gs), desc="regularising temperature points"):
+			
+			# this df is at all temperatures
+			subset_df = df[(df[FEH_COLUMN] == FeH) & (df[LOGG_COLUMN] == log_g)]
+			
+			for new_T_eff in regularised_temperatures:
+				# aka subset df represents 3D data which maps (wavelength to flux) over a set of temperatures
+				# we want the wavelength to flux map at a different temperature; namely at new_T_eff
+				
+				# so we want to linearly interpolate every flux between T_1 and T_2 at all wavelengths
+				# aka. np.interp(new_T_eff, subset_df[TEMPERATURE_COLUMN], subset_df[FLUX_COLUMN]) # assuming this vectorises and returns a map from all wavelengths to fluxes
+				
+				from scipy.interpolate import interp1d
+				
+				pivoted = df.pivot(index=TEFF_COLUMN, columns=WAVELENGTH_COLUMN, values=FLUX_COLUMN)
+				x = pivoted.index.to_numpy()               # shape (n_temperatures,)
+				wavelengths = pivoted.columns.to_numpy()   # shape (n_wavelengths,)
+				y = pivoted.values
+				
+				print(pivoted)
+				
+				# i think this is the wrong functino to be using: xold seems to determine the dimensionality of the output
+				
+				f = interp1d(x, y, axis=0)
+				
+				wavelength_to_flux_map_at_new_T_eff = f(new_T_eff)
+				
+				temp_df = pd.DataFrame({
+					TEFF_COLUMN : new_T_eff,
+					FEH_COLUMN : FeH,
+					LOGG_COLUMN : log_g,
+					WAVELENGTH_COLUMN : wavelengths,
+					FLUX_COLUMN : wavelength_to_flux_map_at_new_T_eff # interpolated flux function between previous and next temperatures 
+				})
+				
+				# avoid warning about concat-ing an empty df
+				if not new_df.empty:
+					# our df index has no meaningful meaning, and sort I think just ensures the columns are in the correct order or something?
+					new_df = pd.concat([new_df, temp_df], ignore_index=True)#, sort=True)
+				else:
+					new_df = temp_df
+					
+		df = new_df
+			
+			
+			
+			
 	# pandas tables can't save their metadata into a HDF5 directly (can use HDFStore or smthn) - but astropy tables can have metadata, units etc. so lets convert to an astropy table
 	from astropy.table import QTable
 	table = QTable.from_pandas(df)
@@ -181,11 +245,8 @@ if __name__ == "__main__":
 	import specutils
 
 	table[WAVELENGTH_COLUMN] = specutils.utils.wcs_utils.vac_to_air(table[WAVELENGTH_COLUMN])
-
-	# interpolation
+			
 	
-	# master_wavelength_grid_micrometers = np.linspace(0.5, 15, 100)
-
 	## [SOME INTERPOLATION HERE] ##
 	
 	# add some metadata to the QTable e.g. (wavelength medium = air, source, date)
