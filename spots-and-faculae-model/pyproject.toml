@@ -1,5 +1,5 @@
 [project]
-name = "phoenix-grid-creator"
+name = "spots-and-faculae-model"
 version = "0.1.0"
 description = ""
 authors = [
@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "phoenix_grid_creator", from = "src"}]
+packages = [{include = "spots-and-faculae-model", from = "src"}]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
