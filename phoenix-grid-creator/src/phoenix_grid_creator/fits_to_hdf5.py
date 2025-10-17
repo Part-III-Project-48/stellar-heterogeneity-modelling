@@ -1,6 +1,6 @@
 """
 this is going to download our spectrum data that meets some specified data ranges
-this file should just be run once when you want to create the data grid, which is stored in the hdf5 format. Then you can load this hdf5 in quickly into a jupyter notebook etc to do the science 
+this file should just be run once when you want to create the data grid, which is stored in the hdf5 format. Then you can load this hdf5 in quickly into a jupyter notebook etc to do the science. See basic_plotter.py for a way to read in the data
 """
 
 # external imports
@@ -319,7 +319,7 @@ if __name__ == "__main__":
 	table.meta = {"wavelength medium" : "air",
 				"source" : "https://phoenix.astro.physik.uni-goettingen.de/data/",
 				"date this hdf5 file was created" : datetime.datetime.now(),
-				"description" : "if it includes interpolated values, then a specified list of wavelengths and/or temperatures were given, and the simulated data was (linearly) interpolated onto those values",
+				"description" : "if it includes interpolated values, then a specified list of wavelengths and/or temperatures were given, and the simulated data was (linearly) interpolated onto those values (aka; information was removed and accuracy is not guaranteed)",
 				"includes interpolated wavelengths?" : REGULARISE_WAVELENGTH_GRID,
 				"includes interpolated temperatures?" : REGULARISE_TEMPERATURE_GRID}
 
