@@ -39,25 +39,25 @@ alphaM = 0
 # seems like the only data I can find is LTE data (?)
 lte : bool = True
 
-#debug override for testing
+#debug override for testing - this is the data we collect; the data we save is specified below (if interpolating // regularising)
 T_effs = np.array([2300, 2400, 2500])
 FeHs = np.array([0, 0.5])
 log_gs = np.array([4, 5])
 
 # # # flags # # #
 
-REGULARISE_WAVELENGTH_GRID : bool = False
+REGULARISE_WAVELENGTH_GRID : bool = True
 # the wavelength in the df starts out in angstroms (we add units to an astropy QTable later)
 MIN_WAVELENGTH_ANGSTROMS : float = 0.5 * 10**(-6) * 10**(10)
 MAX_WAVELENGTH_ANGSTROMS : float = 15 * 10**(-6) * 10**(10)
-WAVELENGTH_NUMBER_OF_POINTS : int = 1000
+WAVELENGTH_NUMBER_OF_POINTS : int = 10_000
 regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_ANGSTROMS, WAVELENGTH_NUMBER_OF_POINTS)
 
 # temperature interpolation
 REGULARISE_TEMPERATURE_GRID : bool = True
 MIN_TEMPERATURE_KELVIN = 2300
 MAX_TEMPERATURE_KELVIN = 2500
-TEMPERATURE_RESOLUTION_KELVIN = 5
+TEMPERATURE_RESOLUTION_KELVIN = 50
 regularised_temperatures = np.linspace(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KELVIN, TEMPERATURE_RESOLUTION_KELVIN)
 
 # set to np.inf to ignore
@@ -114,19 +114,7 @@ def debug_plot_interpolated_temperatures():
 	
 	plt.show()
 	
-	
-	
-
-# # # # # # # # # #
-
-
-
-
-
-
-
-
-if __name__ == "__main__":
+def get_wavelength_grid():
 	# read in the wavelength (1D) grid so we can save this into our mega-grid correctly
 
 	script_dir = Path(__file__).resolve().parent
@@ -144,7 +132,14 @@ if __name__ == "__main__":
 		wavelengths = wavelengths.byteswap().view(wavelengths.dtype.newbyteorder())
 		
 		print("[PHOENIX GRID CREATOR] : wavelength grid found & loaded in")
+	
 
+# # # # # # # # # #
+
+
+
+if __name__ == "__main__":
+	wavelengths = get_wavelength_grid()
 
 	# now use defined ranges for the data we want, process it and save this to a hdf5 file
 
@@ -156,6 +151,7 @@ if __name__ == "__main__":
 	file_number = 0
 
 	for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=total_number_of_files, desc="Downloading .fits spectra files"):
+		
 		if file_number >= DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD:
 			break
 		

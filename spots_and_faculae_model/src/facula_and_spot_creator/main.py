@@ -7,9 +7,11 @@
 
 from matplotlib import pyplot as plt
 import numpy as np
-import pandas as pd
 
-from phoenix_grid_creator.fits_to_hdf5 import WAVELENGTH_COLUMN, FLUX_COLUMN
+from phoenix_grid_creator.fits_to_hdf5 import TEFF_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN
+from phoenix_grid_creator.basic_plotter import get_hdf5_data
+ 
+table = get_hdf5_data()
 
 # debug variables
 FeH : float = 0.0
@@ -31,9 +33,6 @@ valid_spot_temperatures = valid_spot_temperatures[valid_spot_temperatures != sta
 
 # get spectra for each temperature; sum them according to some weights
 
-test = np.random.random((5))
-print(test)
-
 def generate_weights(star_temperature : float, spot_temperatures : np.array) -> dict:
 	"""
 	creates a dictionary with kvp of the form temperature : weight such that the sum of all weights in the dictionary = 1
@@ -46,22 +45,33 @@ def generate_weights(star_temperature : float, spot_temperatures : np.array) -> 
 
 t_effs_and_weights = generate_weights(star_T_eff_Kelvin, valid_spot_temperatures)
 
-# check its 1
-print(sum(t_effs_and_weights.values()))
+# if you want to double check its 1
+# print(sum(t_effs_and_weights.values()))
+
+# print(t_effs_and_weights)
  
 # this will be our total spectrum; combined from the star + all spots / faculae sources
-spectrum = pd.DataFrame(columns=[WAVELENGTH_COLUMN, FLUX_COLUMN])
+# keep columns and metadata; but no rows // data
+spectrum = table[:0]
+
+from astropy import units as u
+from astropy.table import vstack, QTable
+
 
 for (temperature, weight) in t_effs_and_weights.items():
 	# read in wavelength, flux value for temperature
+	# if this doesnt exist then probably just print a msg and skip
+	# or could interpolate on the fly; might be a nicer method
 	
-	sub_spectrum = pd.DataFrame(columns=[WAVELENGTH_COLUMN, FLUX_COLUMN])
+	# astropy masks require units (if the relevant column is unit-ed)
+	sub_spectrum = table[table[TEFF_COLUMN] == temperature * u.K]
 	sub_spectrum[FLUX_COLUMN] *= weight
 	
-	if not spectrum.empty:
-		spectrum = pd.concat([spectrum, sub_spectrum], ignore_index=True)
+	# same logic as in fits_to_hdf5.py, but just for an astropy qtable instead of for a pandas dataframe
+	if len(spectrum) != 0:
+		spectrum = vstack([spectrum, sub_spectrum])
 	else:
 		spectrum = sub_spectrum
 		
-plt.scatter(spectrum[WAVELENGTH_COLUMN], spectrum[FLUX_COLUMN])
+plt.plot(spectrum[WAVELENGTH_COLUMN], spectrum[FLUX_COLUMN], linewidth=1)
 plt.show()
