@@ -319,7 +319,12 @@ if __name__ == "__main__":
 				"date this hdf5 file was created" : datetime.datetime.now(),
 				"description" : "if it includes interpolated values, then a specified list of wavelengths and/or temperatures were given, and the simulated data was (linearly) interpolated onto those values (aka; information was removed and accuracy is not guaranteed)",
 				"includes interpolated wavelengths?" : REGULARISE_WAVELENGTH_GRID,
-				"includes interpolated temperatures?" : REGULARISE_TEMPERATURE_GRID}
+				"regularised wavelengths (Angstroms):" : f"np.linspace({MIN_WAVELENGTH_ANGSTROMS}, {MAX_WAVELENGTH_ANGSTROMS}, {WAVELENGTH_NUMBER_OF_POINTS})" if REGULARISE_WAVELENGTH_GRID else "not applicable",
+				"includes interpolated temperatures?" : REGULARISE_TEMPERATURE_GRID,
+				"regularised temperatures (Kelvin)" : f"np.arange({MIN_TEMPERATURE_KELVIN}, {MAX_TEMPERATURE_KELVIN + TEMPERATURE_RESOLUTION_KELVIN}, {TEMPERATURE_RESOLUTION_KELVIN})" if REGULARISE_TEMPERATURE_GRID else "not applicable",
+				"Teff (original data)" : T_effs,
+				"FeH (original data)" : FeHs,
+				"log_gs (original data)" : log_gs}
 
 	print("[PHOENIX GRID CREATOR] : writing dataframe to hdf5...")
 
