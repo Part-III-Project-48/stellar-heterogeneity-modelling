@@ -19,7 +19,7 @@ import scipy
 import matplotlib.pyplot as plt
 
 # internal imports
-from PHOENIX_filename_conventions import *
+from phoenix_grid_creator.PHOENIX_filename_conventions import *
 
 # column names
 TEFF_COLUMN = "T_eff / K"

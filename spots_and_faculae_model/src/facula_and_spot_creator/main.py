@@ -5,8 +5,11 @@
 # the rest will be small and I guess randomised
 # store FeH log_g {w_i's for each T_eff in some structured way}
 
+from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
+
+from phoenix_grid_creator.fits_to_hdf5 import WAVELENGTH_COLUMN, FLUX_COLUMN
 
 # debug variables
 FeH : float = 0.0
@@ -45,11 +48,20 @@ t_effs_and_weights = generate_weights(star_T_eff_Kelvin, valid_spot_temperatures
 
 # check its 1
 print(sum(t_effs_and_weights.values()))
-
-WAVELENGTH_COLUMN : str = "Wavelength / Angstroms"
-FLUX_COLUMN : str = "Total Flux / Counts"
-
+ 
 # this will be our total spectrum; combined from the star + all spots / faculae sources
 spectrum = pd.DataFrame(columns=[WAVELENGTH_COLUMN, FLUX_COLUMN])
 
-print(spectrum)
+for (temperature, weight) in t_effs_and_weights.items():
+	# read in wavelength, flux value for temperature
+	
+	sub_spectrum = pd.DataFrame(columns=[WAVELENGTH_COLUMN, FLUX_COLUMN])
+	sub_spectrum[FLUX_COLUMN] *= weight
+	
+	if not spectrum.empty:
+		spectrum = pd.concat([spectrum, sub_spectrum], ignore_index=True)
+	else:
+		spectrum = sub_spectrum
+		
+plt.scatter(spectrum[WAVELENGTH_COLUMN], spectrum[FLUX_COLUMN])
+plt.show()

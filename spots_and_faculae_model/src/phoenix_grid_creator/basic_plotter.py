@@ -8,7 +8,7 @@ from astropy import units as u
 import numpy as np
 
 # import column names
-from fits_to_hdf5 import TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN
+from phoenix_grid_creator.fits_to_hdf5 import TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN
 
 script_dir = Path(__file__).resolve().parent
 SPECTRAL_GRID_RELATIVE_PATH = Path("../..")
