@@ -8,16 +8,41 @@
 from matplotlib import pyplot as plt
 import numpy as np
 
-from phoenix_grid_creator.fits_to_hdf5 import TEFF_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN
+from phoenix_grid_creator.fits_to_hdf5 import TEFF_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN, LOGG_COLUMN, FEH_COLUMN, T_effs
 from phoenix_grid_creator.basic_plotter import get_hdf5_data
- 
+import scipy as sp
+
+# # # # # helper functions # # # # #
+
+def generate_weights(star_temperature : float, spot_temperatures : np.array) -> dict:
+	"""
+	creates a dictionary with kvp of the form temperature : weight such that the sum of all weights in the dictionary = 1
+	
+	eventually this would maybe not be 100% random and have some physical basis
+	"""
+	spot_weights = np.random.random((len(spot_temperatures)))
+	
+	# add these in seperately - we might want to form the weight for the star differently
+	np.append(spot_temperatures, star_temperature)
+	np.append(spot_weights, star_temperature)
+	
+	# normalise
+	
+	spot_weights = spot_weights / np.sum(spot_weights)
+	
+	return dict(zip(spot_temperatures, spot_weights))
+
+# # # # # # # # # #
+
 table = get_hdf5_data()
 
 # debug variables
 FeH : float = 0.0
 log_g : float = 4.0
 
-star_T_eff_Kelvin : float = 3000
+table = table[(table[FEH_COLUMN] == FeH) & (table[LOGG_COLUMN] == log_g)]
+
+star_T_eff_Kelvin : float = 2500
 
 # max dT of facula, spots : inclusive of endpoints
 delta_T_max_Kelvin : float = 500
@@ -27,49 +52,34 @@ spectra_grid_temperature_resolution_Kelvin : float = 50
 min_spot_temperature : float = star_T_eff_Kelvin - delta_T_max_Kelvin
 max_spot_temperature : float = star_T_eff_Kelvin + delta_T_max_Kelvin
 valid_spot_temperatures : np.array = np.arange(min_spot_temperature,  max_spot_temperature + spectra_grid_temperature_resolution_Kelvin, spectra_grid_temperature_resolution_Kelvin)
-
 # remove the star temperature itself; as that is already accounted for
 valid_spot_temperatures = valid_spot_temperatures[valid_spot_temperatures != star_T_eff_Kelvin]
 
-# get spectra for each temperature; sum them according to some weights
-
-def generate_weights(star_temperature : float, spot_temperatures : np.array) -> dict:
-	"""
-	creates a dictionary with kvp of the form temperature : weight such that the sum of all weights in the dictionary = 1
-	"""
-	spot_weights = np.random.random((len(spot_temperatures)))
-	# normalise
-	spot_weights = spot_weights / np.sum(spot_weights)
-	
-	return dict(zip(spot_temperatures, spot_weights))
-
 t_effs_and_weights = generate_weights(star_T_eff_Kelvin, valid_spot_temperatures)
 
-# if you want to double check its 1
-# print(sum(t_effs_and_weights.values()))
-
-# print(t_effs_and_weights)
- 
-# this will be our total spectrum; combined from the star + all spots / faculae sources
-# keep columns and metadata; but no rows // data
+# this will be our total spectrum; combined from the star + all spots / faculae sources. keep columns and metadata from table; but no rows // data
 spectrum = table[:0]
 
 from astropy import units as u
 from astropy.table import vstack, QTable
 
-
+# get spectra for each temperature; sum them according to some weights
 for (temperature, weight) in t_effs_and_weights.items():
-	# read in wavelength, flux value for temperature
-	# if this doesnt exist then probably just print a msg and skip
-	# or could interpolate on the fly; might be a nicer method
-	
-	# astropy masks require units (if the relevant column is unit-ed)
 	sub_spectrum = table[table[TEFF_COLUMN] == temperature * u.K]
+	# print(sub_spectrum)
+	if (len(sub_spectrum) == 0):
+		# if the subset is empty / doesnt exist, could instead interpolate on the fly; might be a nicer method
+		print(f"[FACULA AND SPOT CREATOR] : no spectrum data found for temperature {temperature}, FeH {FeH} and log_g {log_g}. Maybe check if the hdf5 contains the data you are trying to access. Skipping to next temperature value.")
+		continue
+	
+	# normalise the sub spectrum somehow? rn this isn't physical; I assume we need to convert to energy per metre^2 or some analogy to that. this is just a placeholder. ig we want the property that the final energy contained in the spectrum corresponds to some fittable energy / the actual energy of the star ?
+	normalising_constant = sp.integrate.simpson(sub_spectrum[FLUX_COLUMN], x=sub_spectrum[WAVELENGTH_COLUMN])
+	sub_spectrum[FLUX_COLUMN] /= normalising_constant
+	
 	sub_spectrum[FLUX_COLUMN] *= weight
 	
-	# same logic as in fits_to_hdf5.py, but just for an astropy qtable instead of for a pandas dataframe
 	if len(spectrum) != 0:
-		spectrum = vstack([spectrum, sub_spectrum])
+		spectrum[FLUX_COLUMN] += sub_spectrum[FLUX_COLUMN]
 	else:
 		spectrum = sub_spectrum
 		
