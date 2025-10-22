@@ -58,7 +58,7 @@ REGULARISE_TEMPERATURE_GRID : bool = True
 MIN_TEMPERATURE_KELVIN = 2300
 MAX_TEMPERATURE_KELVIN = 2500
 TEMPERATURE_RESOLUTION_KELVIN = 50
-regularised_temperatures = np.linspace(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KELVIN, TEMPERATURE_RESOLUTION_KELVIN)
+regularised_temperatures = np.arange(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KELVIN + TEMPERATURE_RESOLUTION_KELVIN, TEMPERATURE_RESOLUTION_KELVIN)
 
 # set to np.inf to ignore
 DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
@@ -132,6 +132,8 @@ def get_wavelength_grid():
 		wavelengths = wavelengths.byteswap().view(wavelengths.dtype.newbyteorder())
 		
 		print("[PHOENIX GRID CREATOR] : wavelength grid found & loaded in")
+	
+	return wavelengths
 	
 
 # # # # # # # # # #
