@@ -22,7 +22,8 @@ dependencies = [
 [tool.poetry]
 packages = [{include = "spots_and_faculae_model", from = "src"},
 			{include = "phoenix_grid_creator", from = "src"},
-			{include = "facula_and_spot_creator", from = "src"}]
+			{include = "facula_and_spot_creator", from = "src"},
+			{include = "spectrum_component_analyser", from = "src"}]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

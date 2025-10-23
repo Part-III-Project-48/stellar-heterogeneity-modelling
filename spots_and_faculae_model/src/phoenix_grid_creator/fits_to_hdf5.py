@@ -40,9 +40,9 @@ alphaM = 0
 lte : bool = True
 
 #debug override for testing - this is the data we collect; the data we save is specified below (if interpolating // regularising)
-T_effs = np.array([2300, 2400, 2500])
-FeHs = np.array([0, 0.5])
-log_gs = np.array([4, 5])
+T_effs = np.arange(2300, 3500, 100)
+FeHs = np.array([0])
+log_gs = np.array([4])
 
 # # # flags # # #
 
@@ -56,7 +56,7 @@ regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_A
 # temperature interpolation
 REGULARISE_TEMPERATURE_GRID : bool = True
 MIN_TEMPERATURE_KELVIN = 2300
-MAX_TEMPERATURE_KELVIN = 2500
+MAX_TEMPERATURE_KELVIN = 3400
 TEMPERATURE_RESOLUTION_KELVIN = 50
 regularised_temperatures = np.arange(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KELVIN + TEMPERATURE_RESOLUTION_KELVIN, TEMPERATURE_RESOLUTION_KELVIN)
 
@@ -138,10 +138,10 @@ def get_wavelength_grid():
 
 # # # # # # # # # #
 
-
+# just want this exposed to other python files for debugging (temporarily)
+wavelengths = get_wavelength_grid()
 
 if __name__ == "__main__":
-	wavelengths = get_wavelength_grid()
 
 	# now use defined ranges for the data we want, process it and save this to a hdf5 file
 
