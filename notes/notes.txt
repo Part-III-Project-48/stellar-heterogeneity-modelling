@@ -1,0 +1,12 @@
+okay so we need a model that trains on
+
+combined spectra (pseudo-random) + weights of each component
+
+and when given any graph gives the closest representation of that graph as a sum of the components, aka gives us the weights
+and from those weights we can tell the fractional area of each temperature
+
+TODO
+normalisation
+basic ML of some sort
+
+add proof that the temperature interpolation is working to documentation.md
