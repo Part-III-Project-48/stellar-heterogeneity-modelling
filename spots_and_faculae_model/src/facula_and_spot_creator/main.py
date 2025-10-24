@@ -59,45 +59,32 @@ def old_normalise_flux(wavelength : np.array, counts : np.array) -> np.array:
  
 from specutils.fitting import fit_generic_continuum, fit_continuum
 from specutils import SpectralRegion
+from astropy.visualization import quantity_support
 
-def debug_normalise_flux(wavelengths : np.array, counts : np.array) -> np.array:
+def normalise_counts(wavelengths : np.array, counts : np.array, normalised_point = 3 * u.um) -> np.array:
 	"""
+	this will fail if wavelengths does not span at least 0.5um
+	
 	the canonical way to normalise spectra is to choose a portion that's continuum and make that be at a consistent scale
 	
 	inputs should both be lists of astropy quantities (aka values with astropy units)
+	
+	I tried doing this but the continuum fit was terrible: https://specutils.readthedocs.io/en/stable/fitting.html#continuum-fitting
 	"""
-	energy = h * c / wavelengths
 	
-	total_flux = energy * counts
-	# ideally, this would be a range within the spectrum which is ONLY continuum contributions within all components (right now, this is just a random guess)
-	# we want the integral over this range to be some (arbitrary) constant e.g. 1, so that all the spectra have the same scaling
-	# wavelength_range_to_normalise_angstroms : list = [5e-10, 5.05e-10]
+	# kernel size of about 501 with 9999 points between 5 and 15 um seemed good - this range corresponds (roughly) to that 
+	wavelengths_in_range = wavelengths[(wavelengths[0] <= wavelengths) & (wavelengths <= wavelengths[0] + 0.5 * u.um)]
+	kernel_size = len(wavelengths_in_range)
+	if kernel_size % 2 == 0:
+		kernel_size +=1
+		
+	# smooth to make sure there's no spikes
+	smoothed_counts = sp.signal.medfilt(counts, kernel_size=[kernel_size])
 	
-	# actually just do this https://specutils.readthedocs.io/en/stable/fitting.html#continuum-fitting
+	# normalise the counts at 3 um (or next nearest value) to be 1
+	counts /= smoothed_counts[(normalised_point <= wavelengths)][0]
 	
-	continuum = sp.signal.medfilt(total_flux, kernel_size=[501])
-	plt.show()
-	print(continuum)
-	plt.plot(wavelengths, continuum)
-	# plt.plot(wavelengths, total_flux)
-	plt.show()
-	spectrum = Spectrum(flux=total_flux, spectral_axis = wavelengths)
-	
-	fit = fit_generic_continuum(spectrum,
-					 exclude_regions=[SpectralRegion(0 * u.um, 2 * u.um), SpectralRegion(10 * u.um, 20 * u.um)])
-					#  window=[SpectralRegion(1 * u.um, 20 * u.um)])
-	print(fit)
-	from astropy.visualization import quantity_support
-	quantity_support()
-	normalised_spectrum = spectrum.flux / fit(wavelengths)
-	plt.show()
-	mask = (1 * u.um <= wavelengths) & (wavelengths <= 2 * u.um)
-	# wavelengths = wavelengths[mask]
-	plt.plot(wavelengths.to(u.um), spectrum.flux, label="original spectrum")
-	plt.plot(wavelengths.to(u.um), fit(wavelengths), label="fitted")
-	# plt.plot(wavelengths, normalised_spectrum, label="normalised spectrum")
-	plt.legend()
-	plt.show()
+	return counts
 	
 	
 # # # # # # # # # #
@@ -140,7 +127,7 @@ def get_composite_spectrum(star_T_eff_Kelvin : float,
 		# normalise the sub spectrum somehow? rn this isn't physical; I assume we need to convert to energy per metre^2 or some analogy to that. this is just a placeholder. ig we want the property that the final energy contained in the spectrum corresponds to some fittable energy / the actual energy of the star ?
 		normalising_constant = sp.integrate.simpson(sub_spectrum[FLUX_COLUMN], x=sub_spectrum[WAVELENGTH_COLUMN])
 		# sub_spectrum[FLUX_COLUMN] /= normalising_constant ## including this breaks b in component_analyzer: aka we need to normalise everything or nothing to maintain consistency
-		sub_spectrum[FLUX_COLUMN] = old_normalise_flux(sub_spectrum[WAVELENGTH_COLUMN], sub_spectrum[FLUX_COLUMN])
+		sub_spectrum[FLUX_COLUMN] = normalise_counts(sub_spectrum[WAVELENGTH_COLUMN], sub_spectrum[FLUX_COLUMN])
 		sub_spectrum[FLUX_COLUMN] *= weight
 		
 		if len(spectrum) != 0:

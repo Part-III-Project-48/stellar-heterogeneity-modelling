@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 import scipy as sp
 
 #internal
-from facula_and_spot_creator.main import debug_normalise_flux, get_example_spectrum, FeH, log_g, old_normalise_flux
+from facula_and_spot_creator.main import normalise_counts, get_example_spectrum, FeH, log_g, old_normalise_flux
 from phoenix_grid_creator.fits_to_hdf5 import FLUX_COLUMN, TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, wavelengths
 from phoenix_grid_creator.basic_plotter import get_hdf5_data
 
@@ -32,8 +32,8 @@ all_data : QTable = get_hdf5_data()
 b : np.array = np.array(example_spectrum[FLUX_COLUMN])
 normalising_constant = sp.integrate.simpson(example_spectrum[FLUX_COLUMN], x=example_spectrum[WAVELENGTH_COLUMN])
 # b /= normalising_constant
-b = old_normalise_flux(example_spectrum[WAVELENGTH_COLUMN], b)
-debug_normalise_flux(example_spectrum[WAVELENGTH_COLUMN], example_spectrum[FLUX_COLUMN])
+b = normalise_counts(example_spectrum[WAVELENGTH_COLUMN], b)
+normalise_counts(example_spectrum[WAVELENGTH_COLUMN], example_spectrum[FLUX_COLUMN])
 
 
 # print(b)
@@ -48,7 +48,7 @@ for T_eff in available_T_effs:
 	subset = all_data_subset[all_data_subset[TEFF_COLUMN] == T_eff]
 	
 	flux = subset[FLUX_COLUMN]
-	flux = old_normalise_flux(subset[WAVELENGTH_COLUMN], flux)
+	flux = normalise_counts(subset[WAVELENGTH_COLUMN], flux)
 	# flux /= sp.integrate.simpson(subset[FLUX_COLUMN], x=subset[WAVELENGTH_COLUMN])
 	
 	if A.size == 0:
