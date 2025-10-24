@@ -4,10 +4,13 @@
 # store FeH log_g {w_i's for each T_eff in some structured way}
 
 # external
+import astropy
 from matplotlib import pyplot as plt
 import numpy as np
 import scipy as sp
 from astropy import units as u
+import specutils
+from specutils.spectra import Spectrum
 
 # internal
 from phoenix_grid_creator.fits_to_hdf5 import TEFF_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN, LOGG_COLUMN, FEH_COLUMN
@@ -23,7 +26,7 @@ def generate_weights(star_temperature : float, spot_temperatures : np.array) -> 
 	"""
 	spot_weights = np.random.random((len(spot_temperatures)))
 	
-	STAR_TEMPERATURE_WEIGHT : float = 5
+	STAR_TEMPERATURE_WEIGHT : float = 2
 	
 	# add these in seperately - we might want to form the weight for the star differently
 	spot_temperatures = np.append(spot_temperatures, star_temperature)
@@ -39,8 +42,9 @@ def generate_weights(star_temperature : float, spot_temperatures : np.array) -> 
 	return result
 
 from astropy.constants import h, c
+print(h)
 
-def normalise_flux(wavelength : np.array, counts : np.array) -> np.array:
+def old_normalise_flux(wavelength : np.array, counts : np.array) -> np.array:
 	energy = h * c / wavelength
 	
 	total_energy = energy * counts
@@ -52,7 +56,35 @@ def normalise_flux(wavelength : np.array, counts : np.array) -> np.array:
 	
 	# return counts again
 	return (total_energy / energy).to_value()
+ 
+from specutils.fitting import fit_generic_continuum, fit_continuum
+from specutils import SpectralRegion
+from astropy.visualization import quantity_support
+
+def normalise_counts(wavelengths : np.array, counts : np.array, normalised_point = 3 * u.um) -> np.array:
+	"""
+	this will fail if wavelengths does not span at least 0.5um
 	
+	the canonical way to normalise spectra is to choose a portion that's continuum and make that be at a consistent scale
+	
+	inputs should both be lists of astropy quantities (aka values with astropy units)
+	
+	I tried doing this but the continuum fit was terrible: https://specutils.readthedocs.io/en/stable/fitting.html#continuum-fitting
+	"""
+	
+	# kernel size of about 501 with 9999 points between 5 and 15 um seemed good - this range corresponds (roughly) to that 
+	wavelengths_in_range = wavelengths[(wavelengths[0] <= wavelengths) & (wavelengths <= wavelengths[0] + 0.5 * u.um)]
+	kernel_size = len(wavelengths_in_range)
+	if kernel_size % 2 == 0:
+		kernel_size +=1
+		
+	# smooth to make sure there's no spikes
+	smoothed_counts = sp.signal.medfilt(counts, kernel_size=[kernel_size])
+	
+	# normalise the counts at 3 um (or next nearest value) to be 1
+	counts /= smoothed_counts[(normalised_point <= wavelengths)][0]
+	
+	return counts
 	
 	
 # # # # # # # # # #
@@ -75,10 +107,10 @@ def get_composite_spectrum(star_T_eff_Kelvin : float,
 
 	t_effs_and_weights = generate_weights(star_T_eff_Kelvin, valid_spot_temperatures)
 	
-	for temperature, weight in sorted(t_effs_and_weights.items()):
-		print(f"temperature {temperature} : {weight}")
+	# for temperature, weight in sorted(t_effs_and_weights.items()):
+		# print(f"temperature {temperature} : {weight}")
 	
-	plt.plot(t_effs_and_weights.keys(), t_effs_and_weights.values(), color="red")
+	plt.plot(t_effs_and_weights.keys(), t_effs_and_weights.values(), color="red", linestyle="-", alpha=0.5, label="input weights", linewidth=4, marker="x", markersize=12)
 	
 	# this will be our total spectrum; combined from the star + all spots / faculae sources. keep columns and metadata from table; but no rows // data
 	spectrum = table[:0]
@@ -95,7 +127,7 @@ def get_composite_spectrum(star_T_eff_Kelvin : float,
 		# normalise the sub spectrum somehow? rn this isn't physical; I assume we need to convert to energy per metre^2 or some analogy to that. this is just a placeholder. ig we want the property that the final energy contained in the spectrum corresponds to some fittable energy / the actual energy of the star ?
 		normalising_constant = sp.integrate.simpson(sub_spectrum[FLUX_COLUMN], x=sub_spectrum[WAVELENGTH_COLUMN])
 		# sub_spectrum[FLUX_COLUMN] /= normalising_constant ## including this breaks b in component_analyzer: aka we need to normalise everything or nothing to maintain consistency
-		sub_spectrum[FLUX_COLUMN] = normalise_flux(sub_spectrum[WAVELENGTH_COLUMN], sub_spectrum[FLUX_COLUMN])
+		sub_spectrum[FLUX_COLUMN] = normalise_counts(sub_spectrum[WAVELENGTH_COLUMN], sub_spectrum[FLUX_COLUMN])
 		sub_spectrum[FLUX_COLUMN] *= weight
 		
 		if len(spectrum) != 0:
@@ -112,10 +144,10 @@ log_g : float = 4.0
 def get_example_spectrum():
 	# debug variables
 
-	star_T_eff_Kelvin : float = 2650
+	star_T_eff_Kelvin : float = 3200
 
 	# max dT of facula, spots : inclusive of endpoints
-	delta_T_max_Kelvin : float = 350
+	delta_T_max_Kelvin : float = 500
 
 	spectra_grid_temperature_resolution_Kelvin : float = 50
 	

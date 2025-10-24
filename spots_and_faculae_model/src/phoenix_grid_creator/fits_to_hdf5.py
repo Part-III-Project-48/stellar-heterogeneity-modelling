@@ -28,7 +28,8 @@ LOGG_COLUMN = "log_g / log(cm s^(-2))"
 WAVELENGTH_COLUMN = "wavelength / angstroms"
 FLUX_COLUMN = "flux / counts"
 
-HDF5_FILENAME_TO_SAVE : str = 'new.hdf5'
+SAVE_TO_HDF : bool = False
+HDF5_FILENAME_TO_SAVE : str = 'spectral_grid.hdf5'
 
 # data to request (these numbers have to be included in the PHOENIX dataset; view PHOENIX_filename_conventions.py for which are allowed)
 T_effs = np.arange(2300, 4001, 100)
@@ -40,7 +41,7 @@ alphaM = 0
 lte : bool = True
 
 #debug override for testing - this is the data we collect; the data we save is specified below (if interpolating // regularising)
-T_effs = np.arange(2300, 3500, 100)
+T_effs = np.arange(2300, 4001, 100)
 FeHs = np.array([0])
 log_gs = np.array([4])
 
@@ -56,7 +57,7 @@ regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_A
 # temperature interpolation
 REGULARISE_TEMPERATURE_GRID : bool = True
 MIN_TEMPERATURE_KELVIN = 2300
-MAX_TEMPERATURE_KELVIN = 3400
+MAX_TEMPERATURE_KELVIN = 4000
 TEMPERATURE_RESOLUTION_KELVIN = 50
 regularised_temperatures = np.arange(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KELVIN + TEMPERATURE_RESOLUTION_KELVIN, TEMPERATURE_RESOLUTION_KELVIN)
 
@@ -221,7 +222,11 @@ if __name__ == "__main__":
 				df = pd.concat([df, temp_df], ignore_index=True)#, sort=True)
 			else:
 				df = temp_df
-
+				
+			plt.plot(regularised_wavelengths, temp_df[FLUX_COLUMN])
+	
+	plt.show()
+	
 	if REGULARISE_TEMPERATURE_GRID:
 		
 		regularised_wavelength_df = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN])
@@ -247,7 +252,7 @@ if __name__ == "__main__":
 				
 				# i think this is the wrong functino to be using: xold seems to determine the dimensionality of the output
 				
-				f = interp1d(x, y, axis=0)
+				f = interp1d(x, y, axis=0, kind="cubic")
 				
 				wavelength_to_flux_map_at_new_T_eff = f(new_T_eff)
 				
@@ -313,7 +318,7 @@ if __name__ == "__main__":
 
 	# add some metadata to the QTable e.g. (wavelength medium = air, source, date)
 	import datetime
-
+	
 	table.meta = {"wavelength medium" : "air",
 				"source" : "https://phoenix.astro.physik.uni-goettingen.de/data/",
 				"date this hdf5 file was created" : datetime.datetime.now(),
@@ -325,11 +330,12 @@ if __name__ == "__main__":
 				"Teff (original data)" : T_effs,
 				"FeH (original data)" : FeHs,
 				"log_gs (original data)" : log_gs}
-
+	
 	print("[PHOENIX GRID CREATOR] : writing dataframe to hdf5...")
-
-	table.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True)
-
+	
+	if SAVE_TO_HDF:
+		table.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True)
+	
 	print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
 
 

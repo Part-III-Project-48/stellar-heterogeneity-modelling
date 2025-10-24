@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 import scipy as sp
 
 #internal
-from facula_and_spot_creator.main import get_example_spectrum, FeH, log_g, normalise_flux
+from facula_and_spot_creator.main import normalise_counts, get_example_spectrum, FeH, log_g, old_normalise_flux
 from phoenix_grid_creator.fits_to_hdf5 import FLUX_COLUMN, TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, wavelengths
 from phoenix_grid_creator.basic_plotter import get_hdf5_data
 
@@ -32,7 +32,8 @@ all_data : QTable = get_hdf5_data()
 b : np.array = np.array(example_spectrum[FLUX_COLUMN])
 normalising_constant = sp.integrate.simpson(example_spectrum[FLUX_COLUMN], x=example_spectrum[WAVELENGTH_COLUMN])
 # b /= normalising_constant
-b = normalise_flux(example_spectrum[WAVELENGTH_COLUMN], b)
+b = normalise_counts(example_spectrum[WAVELENGTH_COLUMN], b)
+normalise_counts(example_spectrum[WAVELENGTH_COLUMN], example_spectrum[FLUX_COLUMN])
 
 
 # print(b)
@@ -47,7 +48,7 @@ for T_eff in available_T_effs:
 	subset = all_data_subset[all_data_subset[TEFF_COLUMN] == T_eff]
 	
 	flux = subset[FLUX_COLUMN]
-	flux = normalise_flux(subset[WAVELENGTH_COLUMN], flux)
+	flux = normalise_counts(subset[WAVELENGTH_COLUMN], flux)
 	# flux /= sp.integrate.simpson(subset[FLUX_COLUMN], x=subset[WAVELENGTH_COLUMN])
 	
 	if A.size == 0:
@@ -58,15 +59,17 @@ for T_eff in available_T_effs:
 # print(A)
 # assume that w \in [0,1] : but I think this will only be true for real data if normalisation has been done correctly (???)
 
-result = sp.optimize.lsq_linear(A, b, bounds = (0, 1), tol =1e-10, lsmr_tol=1e-15)
+result = sp.optimize.lsq_linear(A, b, bounds = (0, 1), tol =1e-10, lsmr_tol=1e-6, max_iter=2000)
+
+print(result)
 
 
-print("found weights")
-for i, T_eff in enumerate(available_T_effs):
-	weight = result.x[i]
-	print(f"temperature {T_eff} : {weight}")
+# print("found weights")
+# for i, T_eff in enumerate(available_T_effs):
+# 	weight = result.x[i]
+# 	print(f"temperature {T_eff} : {weight}")
 	
-plt.plot([a.to_value() for a in available_T_effs] , result.x, color="blue", linestyle="-", marker="o")
+plt.plot([a.to_value() for a in available_T_effs] , result.x, color="blue", linestyle="dashed", marker="o", alpha=0.7, label="found weights")
 
 # alternative fortran method	
 # result = sp.optimize.nnls(A, b)
@@ -75,11 +78,6 @@ plt.plot([a.to_value() for a in available_T_effs] , result.x, color="blue", line
 plt.xlabel("Temperature / K")
 plt.ylabel("weight / unitless")
 
-# add a fake legend
-blue = Line2D([0], [0], label='found weights', marker='s', color="blue", linestyle='')
-red = Line2D([0], [0], label='found weights', marker='s',  color="red", linestyle='')
-points = [blue, red]
-labels = ['found weights', 'input weights']
-plt.legend(points, labels)
+plt.legend()
 
 plt.show()
