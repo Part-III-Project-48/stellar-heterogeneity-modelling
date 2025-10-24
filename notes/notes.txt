@@ -10,3 +10,7 @@ normalisation
 basic ML of some sort
 
 add proof that the temperature interpolation is working to documentation.md
+
+---
+
+add the full hdf5 file to a google drive (run on main pc to create)

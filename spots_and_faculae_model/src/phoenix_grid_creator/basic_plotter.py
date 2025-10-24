@@ -7,7 +7,7 @@ from astropy.table import QTable
 from astropy import units as u
 import numpy as np
 
-SPECTRAL_GRID_RELATIVE_PATH = Path("../../assets/new.hdf5")
+SPECTRAL_GRID_RELATIVE_PATH = Path("../../assets/spectral_grid.hdf5")
 
 # import column names
 from phoenix_grid_creator.fits_to_hdf5 import TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN
