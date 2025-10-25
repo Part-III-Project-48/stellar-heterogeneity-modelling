@@ -27,13 +27,13 @@ Using poetry means that the python dependencies are fully specified and don't br
 To create the HDF5 file, you need to download the wavelength grid into the assets folder. The wavelength grid can be downloaded using (assuming you start in the top-level of the repo):
 
 ```bash
-cd phoenix-grid-creator/assets
+cd spots_and_faculae_model/assets
 wget https://phoenix.astro.physik.uni-goettingen.de/data/HiResFITS/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits
 ```
 
 This .fits contains 1x HDU which contains 1D data. The length of this 1D array is the same as the length for all the spectral data; and the values in this array is the corresponding wavelength for the index. i.e. this file maps index -> wavelength (angstroms)
 
-Then to create the HDF5 file, just run `phoenix-grid-creator/src/phoenix-grid-creator/fits_to_hdf5.py`.
+Then to create the HDF5 file, just run `spots_and_faculae_model/src/phoenix_grid_creator/fits_to_hdf5.py`.
 
 # Downloading other .fits files
 
