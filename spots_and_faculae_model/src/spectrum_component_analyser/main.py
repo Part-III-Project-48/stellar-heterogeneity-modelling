@@ -3,6 +3,7 @@
 
 # eventually can read in external data or some training data from a large hdf5 file etc
 
+from itertools import product
 from pathlib import Path
 import astropy
 from astropy.table import QTable
@@ -45,14 +46,14 @@ def convert_counts_to_Janskys(wavelength : np.array, counts : np.array):
 # units = spectrum_to_decompose[FLUX_COLUMN][0].unit
 # spectrum_to_decompose[FLUX_COLUMN] += (np.random.rand(len(spectrum_to_decompose[FLUX_COLUMN])) - 0.5) * units * (1/10) * np.average(spectrum_to_decompose[FLUX_COLUMN])
 if __name__ == "__main__":
-	external_spectrum_path = Path("spots_and_faculae_model/assets/MAST_2025-10-26T11_57_04.058Z - LTT/MAST_2025-10-26T11_57_04.058Z/JWST/jw03557004001_04101_00001-seg001_nis_x1dints.fits")
+	external_spectrum_path = Path("spots_and_faculae_model/assets/MAST_2025-10-26T08_10_09.071Z/MAST_2025-10-26T08_10_09.071Z/JWST/jw02722003001_04101_00001-seg001_nis_x1dints.fits")
 
 	absolute_external_spectrum = external_spectrum_path.resolve()
 
 	spectrum_to_decompose = read_JWST_fits(absolute_external_spectrum)
 	spectrum_to_decompose = spectrum_to_decompose[np.isfinite(spectrum_to_decompose[FLUX_COLUMN])]
 	spectrum_to_decompose = spectrum_to_decompose[spectrum_to_decompose[FLUX_COLUMN] != np.nan]
-	spectrum_to_decompose = spectrum_to_decompose[(1 * u.um <= spectrum_to_decompose[WAVELENGTH_COLUMN])]
+	# spectrum_to_decompose = spectrum_to_decompose[(0.5 * u.um <= spectrum_to_decompose[WAVELENGTH_COLUMN])]
 	# plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN])
 	# plt.show()
 	# read in all the available spectra we have (we are assuming FeH and log_g, so this is an easier problem for now)
@@ -67,46 +68,51 @@ if __name__ == "__main__":
 	print("normalising counts")
 	# spectrum_to_decompose[FLUX_COLUMN] *= 10e10
 
-	plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN], label="unnormalised real spectrum to componentise")
+	# plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN], label="unnormalised real spectrum to componentise")
 	spectrum_to_decompose[FLUX_COLUMN] = normalise_counts(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN])
 	# spectrum_to_decompose[FLUX_COLUMN] = sp.signal.medfilt(spectrum_to_decompose[FLUX_COLUMN], kernel_size=[5])
-	plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN], label="normalised real spectrum to componentise")
-	plt.legend()
-	plt.show()
+	# plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN], label="normalised real spectrum to componentise")
+	# plt.legend()
+	# plt.show()
 
 	print("finished normalising counts")
 	# print(spectrum_to_decompose)
 	# plt.show()
 
 	A = np.empty((0, 0))
-	print("start filter")
-	# print(all_data)
-	all_data_subset = all_data[(all_data[FEH_COLUMN] == FeH) & (all_data[LOGG_COLUMN] == log_g)]
-	print("finished filter")
 
-	# this is slow but gives us all the T_effs saved to the spectral grid
-	available_T_effs = astropy.table.unique(all_data_subset, keys=[TEFF_COLUMN])[TEFF_COLUMN] 
-	JWST_resolution = .001 * u.um
+	# this is slow but gives us all the parameters saved to the spectral grid
+	T_effs = astropy.table.unique(all_data, keys=[TEFF_COLUMN])[TEFF_COLUMN]
+	FeHs = astropy.table.unique(all_data, keys=[FEH_COLUMN])[FEH_COLUMN]
+	log_gs = astropy.table.unique(all_data, keys=[LOGG_COLUMN])[LOGG_COLUMN]
+
+	JWST_resolution = .001 * u.um # we will convolve our simulated data over this range before sampling it
 	
-	def process_single_T_eff(T_eff : Quantity[u.K]):
-		subset = all_data_subset[all_data_subset[TEFF_COLUMN] == T_eff]
+	def process_single_spectral_component(T_eff : Quantity[u.K], FeH : float, log_g : float):
+		subset = all_data[(all_data[TEFF_COLUMN] == T_eff) &
+						  (all_data[FEH_COLUMN] == FeH) &
+						  (all_data[LOGG_COLUMN] == log_g)]
 		index_per_wavelength = len(subset[WAVELENGTH_COLUMN]) / (np.max(subset[WAVELENGTH_COLUMN]) - np.min(subset[WAVELENGTH_COLUMN]))
-		convolution_range = int(index_per_wavelength * JWST_resolution) # should be something like the resolution of the jwst spectrum
-		tqdm.write(f"convolution_range={convolution_range}")
+		convolution_range = int(index_per_wavelength * JWST_resolution) # in number of adjacent points to consider
+		# plt.plot(subset[WAVELENGTH_COLUMN], subset[FLUX_COLUMN] / np.max(subset[FLUX_COLUMN]), label="pre conv")
 		flux = sp.ndimage.gaussian_filter(subset[FLUX_COLUMN], convolution_range)
+		# plt.plot(subset[WAVELENGTH_COLUMN], flux / np.max(flux), label="post conv, all")
 		interp = interp1d(subset[WAVELENGTH_COLUMN], flux, kind='linear')
 		flux = interp(spectrum_to_decompose[WAVELENGTH_COLUMN].to(u.Angstrom))
 		flux = convert_counts_to_Janskys(spectrum_to_decompose[WAVELENGTH_COLUMN], flux)
 		flux = normalise_counts(spectrum_to_decompose[WAVELENGTH_COLUMN], flux)
+		# plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], flux, label="post conv, windowed")
+		# plt.legend()
+		# plt.show()
 		return flux
-	
+
 	results = Parallel(n_jobs=-1, prefer="threads")(
-		delayed(process_single_T_eff)(T_eff) for T_eff in available_T_effs
+		delayed(process_single_spectral_component)(T_eff, FeH, log_g) for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=len(T_effs) * len(FeHs) * len(log_gs), desc="Appending values to A matrix...")
 		)
 	A = np.column_stack(results)
 	print("minimising")
 	# assume that w \in [0,1] : but I think this will only be true for real data if normalisation has been done correctly (???)
-	result = sp.optimize.lsq_linear(A, spectrum_to_decompose[FLUX_COLUMN], bounds = (0, 100))#, tol=1e-15, lsmr_tol=1e-10, max_iter=2000)
+	result = sp.optimize.lsq_linear(A, spectrum_to_decompose[FLUX_COLUMN], bounds = (0, 1))#, tol=1e-15, lsmr_tol=1e-10, max_iter=2000)
 	# alternative fortran method
 	# result = sp.optimize.nnls(A, spectrum_to_decompose[FLUX_COLUMN])
 	print(result)
@@ -114,16 +120,25 @@ if __name__ == "__main__":
 	# plt.plot(result[0])
 	# plt.show()
 
-	# print("found weights")
-	# for i, T_eff in enumerate(available_T_effs):
-	# 	weight = result.x[i]
-	# 	print(f"temperature {T_eff} : {weight}")
-
 	# # # plot some data # # #
-	plt.plot(available_T_effs, result.x, color="blue", linestyle="dashed", marker="o", alpha=0.7, label="found weights")
+
+	result_map = {}
+	i = 0
+	for T_eff, FeH, log_g in product(T_effs, FeHs, log_gs):
+		key = (T_eff, FeH, log_g)
+		result_map[key] = i
+		i += 1
+	
+	for FeH, log_g in product(FeHs, log_gs):
+		ys = []
+		for T_eff in T_effs:
+			ys.append(result.x[result_map[(T_eff, FeH, log_g)]])
+		plt.plot(T_effs, ys, linestyle="dashed", marker="o", alpha=0.7, label=f"FeH={FeH}, log_g={log_g}")
+	
+	plt.title("found weights")
 	plt.xlabel("Temperature / K")
 	plt.ylabel("weight / unitless")
-	plt.xticks(np.arange(np.min(available_T_effs) / u.K, np.max(available_T_effs) / u.K + 1, 50) * u.K)
+	plt.xticks(np.arange(np.min(T_effs) / u.K, np.max(T_effs) / u.K + 1, 50) * u.K)
 	plt.grid()
 	plt.legend()
 	plt.show()

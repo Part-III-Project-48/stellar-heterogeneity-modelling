@@ -16,10 +16,12 @@ add proof that the temperature interpolation is working to documentation.md
 
 add the full hdf5 file to a google drive (run on main pc to create)
 
-maybe convert fits_to_hdf5 to use astropy quantities... might be nice
+maybe convert fits_to_hdf5 to use astropy quantities... might be nice (kinda needed lmao)
 
 ## notes: may as well remove out of range/bounds wavelengths before appending to df, even if we're not regularising the grid
         
 stream data to hdf5? to make it a little less bad?
 
 can update wavelength regularisation to include gaussian convolution?
+
+we could test our model on the suns spectra as then maybe the % of area at different temperatures to T_eff might be known...

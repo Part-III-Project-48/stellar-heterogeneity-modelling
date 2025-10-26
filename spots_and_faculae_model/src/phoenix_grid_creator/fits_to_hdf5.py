@@ -15,31 +15,50 @@ from astropy import units as u
 from astropy.table import Table
 from itertools import product
 from pathlib import Path
-import scipy
 import matplotlib.pyplot as plt
 import specutils
 from scipy.interpolate import interp1d
 import datetime
 from astropy.visualization import quantity_support
 from astropy.table import QTable
+import scipy as sp
+from astropy.table import Table, vstack
 
 # internal imports
 from phoenix_grid_creator.PHOENIX_filename_conventions import *
+# temp
+def read_JWST_fits(fits_absolute_path : Path) -> QTable:
+	if not fits_absolute_path.exists():
+		raise FileNotFoundError(f"JWST spectrum file not found at : {fits_absolute_path}.")
+
+	with fits.open(fits_absolute_path) as hdul:
+		hdul.info()
+		HDU_INDEX = 3 # aka EXTRACT1D
+		data = hdul[HDU_INDEX].data
+		hdr = hdul[HDU_INDEX].header
+		print(repr(hdr))
+		INTEGRATION_INDEX : int = 100
+		# print("[SPECTRUM COMPONENT ANALYSER] : external spectrum found & loaded in")
+		spectrum = QTable()
+		spectrum[WAVELENGTH_COLUMN] = data["WAVELENGTH"][INTEGRATION_INDEX] * u.um
+		spectrum[FLUX_COLUMN] = data["FLUX"][INTEGRATION_INDEX] * u.Jy
+	
+	return spectrum
 
 # column names
 TEFF_COLUMN = "T_eff / K"
 FEH_COLUMN = "Fe/H / relative to solar"
 LOGG_COLUMN = "log_g / log(cm s^(-2))"
 WAVELENGTH_COLUMN = "wavelength / angstroms"
-FLUX_COLUMN = "flux / counts"
+FLUX_COLUMN = "flux / erg / (s * cm**2 * cm)"
 
 SAVE_TO_HDF : bool = True
 HDF5_FILENAME_TO_SAVE : str = 'spectral_grid.hdf5'
 
 # data to request (these numbers have to be included in the PHOENIX dataset; view PHOENIX_filename_conventions.py for which are allowed)
-T_effs = np.arange(2300, 7001, 100)
+T_effs = np.arange(3300, 3801, 100) * u.K
 FeHs = np.arange(-0.5, 0.6, 0.5)
-log_gs = np.arange(3.5, 5.6, 0.5)
+log_gs = np.arange(2.5, 5.6, 0.5)
 alphaM = 0
 
 # seems like the only data I can find is LTE data (?)
@@ -47,17 +66,20 @@ lte : bool = True
 
 #debug override for testing - this is the data we collect; the data we save is specified below (if interpolating // regularising)
 # T_effs = np.array([3500])
-FeHs = np.array([0])
-log_gs = np.array([4.5])
+# FeHs = np.array([0, 1])
+# log_gs = np.array([3])
 
 # # # flags # # #
 
-REGULARISE_WAVELENGTH_GRID : bool = False
+REGULARISE_WAVELENGTH_GRID : bool = True
 # the wavelength in the df starts out in angstroms (we add units to an astropy QTable later)
 MIN_WAVELENGTH_ANGSTROMS : float = 0.5 * 10**(-6) * 10**(10)
 MAX_WAVELENGTH_ANGSTROMS : float = 5.5 * 10**(-6) * 10**(10) # phoenix only goes up to 5.5?
 WAVELENGTH_NUMBER_OF_POINTS : int = 10_000
+
 regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_ANGSTROMS, WAVELENGTH_NUMBER_OF_POINTS)
+path = Path("spots_and_faculae_model/assets/MAST_2025-10-26T08_10_09.071Z/MAST_2025-10-26T08_10_09.071Z/JWST/jw02722003001_04101_00001-seg001_nis_x1dints.fits")
+regularised_wavelengths = read_JWST_fits(path)[WAVELENGTH_COLUMN]
 
 # temperature interpolation
 REGULARISE_TEMPERATURE_GRID : bool = False
@@ -76,10 +98,6 @@ DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
 
 
 # # # # # helper functions # # # # # 
-print(1 % 0.2)
-plt.show()
-
-
 
 def debug_plot_interpolated_temperatures():
 	DEBUG_MIN_GRAPH_TEMPERATURE = 2300
@@ -123,7 +141,10 @@ def debug_plot_interpolated_temperatures():
 	
 	plt.show()
 	
-def get_wavelength_grid():
+def get_wavelength_grid() -> np.ndarray:
+	"""
+	returns 1D array consisting of astropy Quantities of dimension length
+	"""
 	# read in the wavelength (1D) grid so we can save this into our mega-grid correctly
 
 	script_dir = Path(__file__).resolve().parent
@@ -139,9 +160,9 @@ def get_wavelength_grid():
 		wavelengths = hdul[WAVELENGTH_GRID_HDU_INDEX].data
 		# the fits file is big endian; pandas requires little endian. this swaps between them
 		wavelengths = wavelengths.byteswap().view(wavelengths.dtype.newbyteorder())
-		
+		wavelengths *= u.Angstrom
 		print("[PHOENIX GRID CREATOR] : wavelength grid found & loaded in")
-	
+
 	return wavelengths
 	
 
@@ -149,6 +170,8 @@ def get_wavelength_grid():
 
 # just want this exposed to other python files for debugging (temporarily)
 wavelengths = get_wavelength_grid()
+
+main_table = QTable()
 
 if __name__ == "__main__":
 
@@ -180,12 +203,6 @@ if __name__ == "__main__":
 			tqdm.write("\n continuing with the next file...")
 			continue
 		
-		
-		# if you want to write the .fits file somewhere then use this
-		# temp_file_name : str = "example.fits"
-		# with open(temp_file_name, "wb") as f:
-		# 	f.write(response.content)
-		
 		# the index of the header data unit the data we want is in (looks to be 0 being the spectra, and 1 being the abundances, and those are the only 2 HDUs in the .fits files)
 		SPECTRA_HDU_INDEX = 0
 
@@ -194,61 +211,40 @@ if __name__ == "__main__":
 			
 			fluxes = hdul[SPECTRA_HDU_INDEX].data
 
-			# min = -np.inf * u.um
-			# max = np.inf * u.um
-			# subset = wavelengths[(min / u.Angstrom <= wavelengths) & (wavelengths <= max / u.Angstrom)]
-			# print(len(subset))
-			# print(len(regularised_wavelengths))
-
 			# for some reason, the fits file is big-endian; pandas required little-endian
 			fluxes = fluxes.byteswap().view(fluxes.dtype.newbyteorder())
-			# pandas will repeat the constant values len(fluxes) times for us
-			temp_df = pd.DataFrame({
-				TEFF_COLUMN : T_eff,
-				FEH_COLUMN : FeH,
-				LOGG_COLUMN : log_g,
-				# need to use the row index <-> wavelength map provided to us by PHOENIX
-				WAVELENGTH_COLUMN : wavelengths,
-				FLUX_COLUMN : fluxes
-			})
+			fluxes *= u.erg / (u.s * u.cm**2 * u.cm)
+			JWST_resolution = .001 * u.um
 
-			# quantity_support()
-			# fig, ax = plt.subplots()
-			# t = QTable.from_pandas(temp_df)
-			# t[FLUX_COLUMN] *= t[WAVELENGTH_COLUMN]**2
-			# t[WAVELENGTH_COLUMN] *= u.Angstrom
-			# ax.plot(t[WAVELENGTH_COLUMN], t[FLUX_COLUMN])
-			# ax.xaxis.set_units(u.um)
-			# ax.set_xlim(0.6 * u.um, 2.8 * u.um)
-			# plt.show()
-			
 			if REGULARISE_WAVELENGTH_GRID:
-				# linear interpolate the fluxes onto a specified grid (this can easily be changed for cubic splines etc if needed)
-				temp_df = temp_df[(MIN_WAVELENGTH_ANGSTROMS <= temp_df[WAVELENGTH_COLUMN]) & (temp_df[WAVELENGTH_COLUMN] <= MAX_WAVELENGTH_ANGSTROMS)]
-				
-				temp_df = pd.DataFrame({
-					TEFF_COLUMN : T_eff,
-					FEH_COLUMN : FeH,
-					LOGG_COLUMN : log_g,
-					# need to use the row index <-> wavelength map provided to us by PHOENIX
-					WAVELENGTH_COLUMN : regularised_wavelengths,
-					FLUX_COLUMN : np.interp(regularised_wavelengths, temp_df[WAVELENGTH_COLUMN], temp_df[FLUX_COLUMN])
-				})
-
-				plt.plot(regularised_wavelengths, temp_df[FLUX_COLUMN])
-			
+				index_per_wavelength = len(wavelengths) / (np.max(wavelengths) - np.min(wavelengths))
+				index_per_wavelength = index_per_wavelength.to(u.um**-1)
+				convolution_range = int((index_per_wavelength * JWST_resolution)) # in number of adjacent points to consider
+				fluxes = sp.ndimage.gaussian_filter(fluxes, convolution_range) * fluxes.unit # gaussian_filter seems to remove units
+				t = QTable([
+					[T_eff]*len(regularised_wavelengths),
+					[FeH]*len(regularised_wavelengths),
+					[log_g]*len(regularised_wavelengths),
+					regularised_wavelengths,
+					np.interp(regularised_wavelengths, wavelengths, fluxes)
+					],
+				names=(TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN))
+			else:
+				t = QTable([
+						[T_eff]*len(wavelengths),
+						[FeH]*len(wavelengths),
+						[log_g]*len(wavelengths),
+						wavelengths,
+						fluxes],
+					names=(TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN))
 			# this might be quicker to stream data to disc rather than creating a massive df
 			# temp_df.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True, append=True)
 			# continue
 			
-			# avoid warning about concat-ing an empty df
-			if not df.empty:
-				# our df index has no meaningful meaning, and sort I think just ensures the columns are in the correct order or something?
-				df = pd.concat([df, temp_df], ignore_index=True)#, sort=True)
+			if len(main_table) > 0:  # check if table is non-empty
+				t = vstack([main_table, t])
 			else:
-				df = temp_df
-	
-	plt.show()
+				main_table = t
 	
 	if REGULARISE_TEMPERATURE_GRID:
 		
@@ -300,37 +296,36 @@ if __name__ == "__main__":
 		df = regularised_wavelength_df
 	
 	# pandas tables can't save their metadata into a HDF5 directly (can use HDFStore or smthn) - but astropy tables can have metadata, units etc. so lets convert to an astropy table
-	table = QTable.from_pandas(df)
 
 	# add astropy units to columns (this will be stored in metadata and can be read back out into an astropy QTable)
 	from astropy.units import imperial
 	imperial.enable()
-	table[TEFF_COLUMN].unit = u.Kelvin
-	table[TEFF_COLUMN].desc = "effective surface temperature"
+	main_table[TEFF_COLUMN].unit = u.Kelvin
+	main_table[TEFF_COLUMN].desc = "effective surface temperature"
 
-	table[FEH_COLUMN].unit = u.dimensionless_unscaled
-	table[FEH_COLUMN].desc = "relative to solar metallacity"
+	main_table[FEH_COLUMN].unit = u.dimensionless_unscaled
+	main_table[FEH_COLUMN].desc = "relative to solar metallacity"
 
 	# astropy seems to have a hard time reading in log quantities from hdf5 files. so lets just save this as unitless
-	table[LOGG_COLUMN].unit = u.dimensionless_unscaled
-	table[LOGG_COLUMN].desc = "log_10(u.cm * u.second**(-2)) of the surface gravity"
+	main_table[LOGG_COLUMN].unit = u.dimensionless_unscaled
+	main_table[LOGG_COLUMN].desc = "log_10(u.cm * u.second**(-2)) of the surface gravity"
 
-	table[WAVELENGTH_COLUMN].unit = u.Angstrom
+	main_table[WAVELENGTH_COLUMN].unit = u.Angstrom
 
-	table[FLUX_COLUMN].unit = u.dimensionless_unscaled
-	table[FLUX_COLUMN].desc = "in counts"
+	main_table[FLUX_COLUMN].unit = u.dimensionless_unscaled
+	main_table[FLUX_COLUMN].desc = "in counts"
 
 	# remove the wavelength ranges we don't want
 
 	MIN_WAVELENGTH = 0 * u.micron
 	MAX_WAVELENGTH = 15 * u.micron
-	table = table[(MIN_WAVELENGTH <= table[WAVELENGTH_COLUMN]) & (table[WAVELENGTH_COLUMN] <= MAX_WAVELENGTH)]
+	t = t[(MIN_WAVELENGTH <= t[WAVELENGTH_COLUMN]) & (t[WAVELENGTH_COLUMN] <= MAX_WAVELENGTH)]
 
 	if CONVERT_WAVELENGTHS_TO_AIR:
-		table[WAVELENGTH_COLUMN] = specutils.utils.wcs_utils.vac_to_air(table[WAVELENGTH_COLUMN])
+		t[WAVELENGTH_COLUMN] = specutils.utils.wcs_utils.vac_to_air(t[WAVELENGTH_COLUMN])
 
 	# add some metadata to the QTable e.g. (wavelength medium = air, source, date)
-	table.meta = {"wavelength medium" : "air" if CONVERT_WAVELENGTHS_TO_AIR else "vacuum",
+	t.meta = {"wavelength medium" : "air" if CONVERT_WAVELENGTHS_TO_AIR else "vacuum",
 				"source" : "https://phoenix.astro.physik.uni-goettingen.de/data/",
 				"date this hdf5 file was created" : datetime.datetime.now(),
 				"description" : "if it includes interpolated values, then a specified list of wavelengths and/or temperatures were given, and the simulated data was (linearly) interpolated onto those values (aka; information was removed and accuracy is not guaranteed)",
@@ -344,7 +339,7 @@ if __name__ == "__main__":
 	
 	if SAVE_TO_HDF:
 		print("[PHOENIX GRID CREATOR] : writing dataframe to hdf5...")
-		table.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True)
+		t.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True)
 		print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
 
 

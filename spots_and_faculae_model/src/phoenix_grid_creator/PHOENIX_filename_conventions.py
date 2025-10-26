@@ -6,14 +6,17 @@ this file defines the filename formats used by PHOENIX in a readable way
 
 GRID : str = "PHOENIX-ACES-AGSS-COND-2011"
 
+from astropy.units import Quantity
+import astropy.units as u
+
 def get_file_name(lte : bool,
-				  T_eff : int,
+				  T_eff : Quantity[u.K],
 				  log_g : float,
 				  FeH : float,
 				  alphaM : float) -> str:
 	
 	### --- check for step and range validity --- ###
-	
+	T_eff = int(T_eff.value)
 	if not ((2_300 <= T_eff <= 7_000 and T_eff % 100 == 0) or (7_000 <= T_eff <= 12000 and T_eff % 200 == 0)):
 		raise ValueError("T_eff value not in range or of incorrect step")
 	
