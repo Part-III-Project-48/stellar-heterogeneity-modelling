@@ -17,6 +17,11 @@ from itertools import product
 from pathlib import Path
 import scipy
 import matplotlib.pyplot as plt
+import specutils
+from scipy.interpolate import interp1d
+import datetime
+from astropy.visualization import quantity_support
+from astropy.table import QTable
 
 # internal imports
 from phoenix_grid_creator.PHOENIX_filename_conventions import *
@@ -28,38 +33,40 @@ LOGG_COLUMN = "log_g / log(cm s^(-2))"
 WAVELENGTH_COLUMN = "wavelength / angstroms"
 FLUX_COLUMN = "flux / counts"
 
-SAVE_TO_HDF : bool = False
+SAVE_TO_HDF : bool = True
 HDF5_FILENAME_TO_SAVE : str = 'spectral_grid.hdf5'
 
 # data to request (these numbers have to be included in the PHOENIX dataset; view PHOENIX_filename_conventions.py for which are allowed)
-T_effs = np.arange(2300, 4001, 100)
+T_effs = np.arange(2300, 7001, 100)
 FeHs = np.arange(-0.5, 0.6, 0.5)
 log_gs = np.arange(3.5, 5.6, 0.5)
-
 alphaM = 0
+
 # seems like the only data I can find is LTE data (?)
 lte : bool = True
 
 #debug override for testing - this is the data we collect; the data we save is specified below (if interpolating // regularising)
-T_effs = np.arange(2300, 4001, 100)
+# T_effs = np.array([3500])
 FeHs = np.array([0])
-log_gs = np.array([4])
+log_gs = np.array([4.5])
 
 # # # flags # # #
 
-REGULARISE_WAVELENGTH_GRID : bool = True
+REGULARISE_WAVELENGTH_GRID : bool = False
 # the wavelength in the df starts out in angstroms (we add units to an astropy QTable later)
 MIN_WAVELENGTH_ANGSTROMS : float = 0.5 * 10**(-6) * 10**(10)
-MAX_WAVELENGTH_ANGSTROMS : float = 15 * 10**(-6) * 10**(10)
+MAX_WAVELENGTH_ANGSTROMS : float = 5.5 * 10**(-6) * 10**(10) # phoenix only goes up to 5.5?
 WAVELENGTH_NUMBER_OF_POINTS : int = 10_000
 regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_ANGSTROMS, WAVELENGTH_NUMBER_OF_POINTS)
 
 # temperature interpolation
-REGULARISE_TEMPERATURE_GRID : bool = True
+REGULARISE_TEMPERATURE_GRID : bool = False
 MIN_TEMPERATURE_KELVIN = 2300
-MAX_TEMPERATURE_KELVIN = 4000
+MAX_TEMPERATURE_KELVIN = 4500
 TEMPERATURE_RESOLUTION_KELVIN = 50
 regularised_temperatures = np.arange(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KELVIN + TEMPERATURE_RESOLUTION_KELVIN, TEMPERATURE_RESOLUTION_KELVIN)
+
+CONVERT_WAVELENGTHS_TO_AIR : bool = False
 
 # set to np.inf to ignore
 DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
@@ -69,7 +76,8 @@ DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
 
 
 # # # # # helper functions # # # # # 
-
+print(1 % 0.2)
+plt.show()
 
 
 
@@ -185,10 +193,15 @@ if __name__ == "__main__":
 			# hdul.info()
 			
 			fluxes = hdul[SPECTRA_HDU_INDEX].data
-			
+
+			# min = -np.inf * u.um
+			# max = np.inf * u.um
+			# subset = wavelengths[(min / u.Angstrom <= wavelengths) & (wavelengths <= max / u.Angstrom)]
+			# print(len(subset))
+			# print(len(regularised_wavelengths))
+
 			# for some reason, the fits file is big-endian; pandas required little-endian
 			fluxes = fluxes.byteswap().view(fluxes.dtype.newbyteorder())
-			
 			# pandas will repeat the constant values len(fluxes) times for us
 			temp_df = pd.DataFrame({
 				TEFF_COLUMN : T_eff,
@@ -198,6 +211,16 @@ if __name__ == "__main__":
 				WAVELENGTH_COLUMN : wavelengths,
 				FLUX_COLUMN : fluxes
 			})
+
+			# quantity_support()
+			# fig, ax = plt.subplots()
+			# t = QTable.from_pandas(temp_df)
+			# t[FLUX_COLUMN] *= t[WAVELENGTH_COLUMN]**2
+			# t[WAVELENGTH_COLUMN] *= u.Angstrom
+			# ax.plot(t[WAVELENGTH_COLUMN], t[FLUX_COLUMN])
+			# ax.xaxis.set_units(u.um)
+			# ax.set_xlim(0.6 * u.um, 2.8 * u.um)
+			# plt.show()
 			
 			if REGULARISE_WAVELENGTH_GRID:
 				# linear interpolate the fluxes onto a specified grid (this can easily be changed for cubic splines etc if needed)
@@ -211,6 +234,8 @@ if __name__ == "__main__":
 					WAVELENGTH_COLUMN : regularised_wavelengths,
 					FLUX_COLUMN : np.interp(regularised_wavelengths, temp_df[WAVELENGTH_COLUMN], temp_df[FLUX_COLUMN])
 				})
+
+				plt.plot(regularised_wavelengths, temp_df[FLUX_COLUMN])
 			
 			# this might be quicker to stream data to disc rather than creating a massive df
 			# temp_df.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True, append=True)
@@ -222,8 +247,6 @@ if __name__ == "__main__":
 				df = pd.concat([df, temp_df], ignore_index=True)#, sort=True)
 			else:
 				df = temp_df
-				
-			plt.plot(regularised_wavelengths, temp_df[FLUX_COLUMN])
 	
 	plt.show()
 	
@@ -231,45 +254,40 @@ if __name__ == "__main__":
 		
 		regularised_wavelength_df = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN])
 		
-		for FeH, log_g in tqdm(product(FeHs, log_gs), total= len(FeHs) * len(log_gs), desc="regularising temperature points"):
+		for FeH, log_g, new_T_eff in tqdm(product(FeHs, log_gs, regularised_temperatures), total= len(FeHs) * len(log_gs) * len(regularised_temperatures), desc="Regularising temperature points"):
 			
 			# this df is at all temperatures
 			subset_df = df[(df[FEH_COLUMN] == FeH) & (df[LOGG_COLUMN] == log_g)]
+
+			# aka subset df represents 3D data which maps (wavelength to flux) over a set of temperatures
+			# we want the wavelength to flux map at a different temperature; namely at new_T_eff
 			
-			for new_T_eff in regularised_temperatures:
-				# aka subset df represents 3D data which maps (wavelength to flux) over a set of temperatures
-				# we want the wavelength to flux map at a different temperature; namely at new_T_eff
-				
-				# so we want to linearly interpolate every flux between T_1 and T_2 at all wavelengths
-				# aka. np.interp(new_T_eff, subset_df[TEMPERATURE_COLUMN], subset_df[FLUX_COLUMN]) # assuming this vectorises and returns a map from all wavelengths to fluxes
-				
-				from scipy.interpolate import interp1d
-				
-				pivoted = subset_df.pivot(index=TEFF_COLUMN, columns=WAVELENGTH_COLUMN, values=FLUX_COLUMN)
-				x = pivoted.index.to_numpy()               # shape (n_temperatures,)
-				wavelengths = pivoted.columns.to_numpy()   # shape (n_wavelengths,)
-				y = pivoted.values
-				
-				# i think this is the wrong functino to be using: xold seems to determine the dimensionality of the output
-				
-				f = interp1d(x, y, axis=0, kind="cubic")
-				
-				wavelength_to_flux_map_at_new_T_eff = f(new_T_eff)
-				
-				temp_df = pd.DataFrame({
-					TEFF_COLUMN : new_T_eff,
-					FEH_COLUMN : FeH,
-					LOGG_COLUMN : log_g,
-					WAVELENGTH_COLUMN : wavelengths,
-					FLUX_COLUMN : wavelength_to_flux_map_at_new_T_eff # interpolated flux function between previous and next temperatures 
-				})
-				
-				# avoid warning about concat-ing an empty df
-				if not regularised_wavelength_df.empty:
-					# our df index has no meaningful meaning, and sort I think just ensures the columns are in the correct order or something?
-					regularised_wavelength_df = pd.concat([regularised_wavelength_df, temp_df], ignore_index=True)#, sort=True)
-				else:
-					regularised_wavelength_df = temp_df
+			# so we want to linearly interpolate every flux between T_1 and T_2 at all wavelengths
+			# aka. np.interp(new_T_eff, subset_df[TEMPERATURE_COLUMN], subset_df[FLUX_COLUMN]) # assuming this vectorises and returns a map from all wavelengths to fluxes
+			
+			pivoted = subset_df.pivot(index=TEFF_COLUMN, columns=WAVELENGTH_COLUMN, values=FLUX_COLUMN)
+			x = pivoted.index.to_numpy()               # shape (n_temperatures,)
+			wavelengths = pivoted.columns.to_numpy()   # shape (n_wavelengths,)
+			y = pivoted.values
+			
+			f = interp1d(x, y, axis=0, kind="cubic")
+			
+			wavelength_to_flux_map_at_new_T_eff = f(new_T_eff)
+			
+			temp_df = pd.DataFrame({
+				TEFF_COLUMN : new_T_eff,
+				FEH_COLUMN : FeH,
+				LOGG_COLUMN : log_g,
+				WAVELENGTH_COLUMN : wavelengths,
+				FLUX_COLUMN : wavelength_to_flux_map_at_new_T_eff # interpolated flux function between previous and next temperatures 
+			})
+			
+			# avoid warning about concat-ing an empty df
+			if not regularised_wavelength_df.empty:
+				# our df index has no meaningful meaning, and sort I think just ensures the columns are in the correct order or something?
+				regularised_wavelength_df = pd.concat([regularised_wavelength_df, temp_df], ignore_index=True)#, sort=True)
+			else:
+				regularised_wavelength_df = temp_df
 		
 		### debug plotting to double check the interpolation worked ###
 
@@ -282,7 +300,6 @@ if __name__ == "__main__":
 		df = regularised_wavelength_df
 	
 	# pandas tables can't save their metadata into a HDF5 directly (can use HDFStore or smthn) - but astropy tables can have metadata, units etc. so lets convert to an astropy table
-	from astropy.table import QTable
 	table = QTable.from_pandas(df)
 
 	# add astropy units to columns (this will be stored in metadata and can be read back out into an astropy QTable)
@@ -305,21 +322,15 @@ if __name__ == "__main__":
 
 	# remove the wavelength ranges we don't want
 
-	MIN_WAVELENGTH = 0.5 * u.micron
+	MIN_WAVELENGTH = 0 * u.micron
 	MAX_WAVELENGTH = 15 * u.micron
-
 	table = table[(MIN_WAVELENGTH <= table[WAVELENGTH_COLUMN]) & (table[WAVELENGTH_COLUMN] <= MAX_WAVELENGTH)]
 
-	import specutils
-
-	table[WAVELENGTH_COLUMN] = specutils.utils.wcs_utils.vac_to_air(table[WAVELENGTH_COLUMN])
-			
-	## [SOME INTERPOLATION HERE] ##
+	if CONVERT_WAVELENGTHS_TO_AIR:
+		table[WAVELENGTH_COLUMN] = specutils.utils.wcs_utils.vac_to_air(table[WAVELENGTH_COLUMN])
 
 	# add some metadata to the QTable e.g. (wavelength medium = air, source, date)
-	import datetime
-	
-	table.meta = {"wavelength medium" : "air",
+	table.meta = {"wavelength medium" : "air" if CONVERT_WAVELENGTHS_TO_AIR else "vacuum",
 				"source" : "https://phoenix.astro.physik.uni-goettingen.de/data/",
 				"date this hdf5 file was created" : datetime.datetime.now(),
 				"description" : "if it includes interpolated values, then a specified list of wavelengths and/or temperatures were given, and the simulated data was (linearly) interpolated onto those values (aka; information was removed and accuracy is not guaranteed)",
@@ -331,12 +342,10 @@ if __name__ == "__main__":
 				"FeH (original data)" : FeHs,
 				"log_gs (original data)" : log_gs}
 	
-	print("[PHOENIX GRID CREATOR] : writing dataframe to hdf5...")
-	
 	if SAVE_TO_HDF:
+		print("[PHOENIX GRID CREATOR] : writing dataframe to hdf5...")
 		table.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True)
-	
-	print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
+		print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
 
 
 

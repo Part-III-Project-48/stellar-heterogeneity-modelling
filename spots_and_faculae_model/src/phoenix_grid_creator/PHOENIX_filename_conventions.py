@@ -23,7 +23,8 @@ def get_file_name(lte : bool,
 	if not ((-4.0 <= FeH <= -2.0 and FeH % 1.0 == 0) or (-2.0 <= FeH <= 1.0 and FeH % 0.5 == 0)):
 		raise ValueError("FeH value not in range or of incorrect step")
 	
-	if not (-0.2 <= alphaM <= 1.2 and alphaM % 0.2 == 0):
+	# multiply by 10 to avoid float division issues
+	if not (-0.2 <= alphaM <= 1.2 and (10*alphaM % 2) == 0):
 		raise ValueError("alphaM value not in range or of incorrect step")
 	
 	### --- check for data availability --- ###

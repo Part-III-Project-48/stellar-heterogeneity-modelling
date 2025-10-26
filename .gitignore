@@ -7,3 +7,5 @@
 **/*.pyc
 
 archive/
+
+spots_and_faculae_model/assets/**

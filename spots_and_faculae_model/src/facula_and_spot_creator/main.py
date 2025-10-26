@@ -42,7 +42,6 @@ def generate_weights(star_temperature : float, spot_temperatures : np.array) -> 
 	return result
 
 from astropy.constants import h, c
-print(h)
 
 def old_normalise_flux(wavelength : np.array, counts : np.array) -> np.array:
 	energy = h * c / wavelength
@@ -61,7 +60,7 @@ from specutils.fitting import fit_generic_continuum, fit_continuum
 from specutils import SpectralRegion
 from astropy.visualization import quantity_support
 
-def normalise_counts(wavelengths : np.array, counts : np.array, normalised_point = 3 * u.um) -> np.array:
+def normalise_counts(wavelengths : np.array, counts : np.array, normalised_point = 2.2 * u.um, smoothing_range = 0.5 * u.um) -> np.array:
 	"""
 	this will fail if wavelengths does not span at least 0.5um
 	
@@ -73,15 +72,15 @@ def normalise_counts(wavelengths : np.array, counts : np.array, normalised_point
 	"""
 	
 	# kernel size of about 501 with 9999 points between 5 and 15 um seemed good - this range corresponds (roughly) to that 
-	wavelengths_in_range = wavelengths[(wavelengths[0] <= wavelengths) & (wavelengths <= wavelengths[0] + 0.5 * u.um)]
+	wavelengths_in_range = wavelengths[(wavelengths[0] <= wavelengths) & (wavelengths <= wavelengths[0] + smoothing_range)]
 	kernel_size = len(wavelengths_in_range)
 	if kernel_size % 2 == 0:
 		kernel_size +=1
 		
 	# smooth to make sure there's no spikes
+	counts = np.array(counts, dtype=np.float64)
 	smoothed_counts = sp.signal.medfilt(counts, kernel_size=[kernel_size])
-	
-	# normalise the counts at 3 um (or next nearest value) to be 1
+	# normalise the counts at normalised_point (or next nearest value) to be 1
 	counts /= smoothed_counts[(normalised_point <= wavelengths)][0]
 	
 	return counts
@@ -124,6 +123,8 @@ def get_composite_spectrum(star_T_eff_Kelvin : float,
 			print(f"[FACULA AND SPOT CREATOR] : no spectrum data found for temperature {temperature}, FeH {FeH} and log_g {log_g}. Maybe check if the hdf5 contains the data you are trying to access. Skipping to next temperature value.")
 			continue
 		
+		print(f"[FACULA AND SPOT CREATOR] : spectrum data found for temperature {temperature}, FeH {FeH} and log_g {log_g}.")
+		
 		# normalise the sub spectrum somehow? rn this isn't physical; I assume we need to convert to energy per metre^2 or some analogy to that. this is just a placeholder. ig we want the property that the final energy contained in the spectrum corresponds to some fittable energy / the actual energy of the star ?
 		normalising_constant = sp.integrate.simpson(sub_spectrum[FLUX_COLUMN], x=sub_spectrum[WAVELENGTH_COLUMN])
 		# sub_spectrum[FLUX_COLUMN] /= normalising_constant ## including this breaks b in component_analyzer: aka we need to normalise everything or nothing to maintain consistency
@@ -134,12 +135,11 @@ def get_composite_spectrum(star_T_eff_Kelvin : float,
 			spectrum[FLUX_COLUMN] += sub_spectrum[FLUX_COLUMN]
 		else:
 			spectrum = sub_spectrum
-
 	return spectrum
 
 # just want these exposed to other python files for debugging, but there's no intrinsic need for them to be global / out of a helper function scope
 FeH : float = 0.0
-log_g : float = 4.0
+log_g : float = 4.5
 
 def get_example_spectrum():
 	# debug variables
@@ -152,7 +152,6 @@ def get_example_spectrum():
 	spectra_grid_temperature_resolution_Kelvin : float = 50
 	
 	spectrum = get_composite_spectrum(star_T_eff_Kelvin, delta_T_max_Kelvin, spectra_grid_temperature_resolution_Kelvin, FeH, log_g)
-	
 	return spectrum
 	
 if __name__ == "__main__":
