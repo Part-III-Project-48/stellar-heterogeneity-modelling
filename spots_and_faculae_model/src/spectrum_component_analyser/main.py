@@ -14,6 +14,8 @@ from tqdm import tqdm
 quantity_support()
 import astropy.units as u
 from scipy.interpolate import interp1d
+from astropy.units import Quantity
+from joblib import Parallel, delayed
 
 from facula_and_spot_creator.main import normalise_counts, get_example_spectrum, FeH, log_g, old_normalise_flux
 from phoenix_grid_creator.fits_to_hdf5 import FLUX_COLUMN, TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN
@@ -43,14 +45,14 @@ def convert_counts_to_Janskys(wavelength : np.array, counts : np.array):
 # units = spectrum_to_decompose[FLUX_COLUMN][0].unit
 # spectrum_to_decompose[FLUX_COLUMN] += (np.random.rand(len(spectrum_to_decompose[FLUX_COLUMN])) - 0.5) * units * (1/10) * np.average(spectrum_to_decompose[FLUX_COLUMN])
 if __name__ == "__main__":
-	external_spectrum_path = Path("spots_and_faculae_model/assets/MAST_2025-10-26T08_10_09.071Z/MAST_2025-10-26T08_10_09.071Z/JWST/jw02722003001_04101_00001-seg001_nis_x1dints.fits")
+	external_spectrum_path = Path("spots_and_faculae_model/assets/MAST_2025-10-26T11_57_04.058Z - LTT/MAST_2025-10-26T11_57_04.058Z/JWST/jw03557004001_04101_00001-seg001_nis_x1dints.fits")
 
 	absolute_external_spectrum = external_spectrum_path.resolve()
 
 	spectrum_to_decompose = read_JWST_fits(absolute_external_spectrum)
 	spectrum_to_decompose = spectrum_to_decompose[np.isfinite(spectrum_to_decompose[FLUX_COLUMN])]
 	spectrum_to_decompose = spectrum_to_decompose[spectrum_to_decompose[FLUX_COLUMN] != np.nan]
-	spectrum_to_decompose = spectrum_to_decompose[(.5 * u.um <= spectrum_to_decompose[WAVELENGTH_COLUMN])]
+	spectrum_to_decompose = spectrum_to_decompose[(1 * u.um <= spectrum_to_decompose[WAVELENGTH_COLUMN])]
 	# plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN])
 	# plt.show()
 	# read in all the available spectra we have (we are assuming FeH and log_g, so this is an easier problem for now)
@@ -84,30 +86,24 @@ if __name__ == "__main__":
 
 	# this is slow but gives us all the T_effs saved to the spectral grid
 	available_T_effs = astropy.table.unique(all_data_subset, keys=[TEFF_COLUMN])[TEFF_COLUMN] 
-
-	# columns to be f_column number's and rows to increment the x value
-	for T_eff in tqdm(available_T_effs, desc="appending fluxes to A matrix"):
+	JWST_resolution = .001 * u.um
+	
+	def process_single_T_eff(T_eff : Quantity[u.K]):
 		subset = all_data_subset[all_data_subset[TEFF_COLUMN] == T_eff]
 		index_per_wavelength = len(subset[WAVELENGTH_COLUMN]) / (np.max(subset[WAVELENGTH_COLUMN]) - np.min(subset[WAVELENGTH_COLUMN]))
-		convolution_range = int(index_per_wavelength * .001 * u.um) # should be something like the resolution of the jwst spectrum
+		convolution_range = int(index_per_wavelength * JWST_resolution) # should be something like the resolution of the jwst spectrum
 		tqdm.write(f"convolution_range={convolution_range}")
-		# plt.plot(subset[WAVELENGTH_COLUMN], subset[FLUX_COLUMN], label="unnormalised synthetic data")
-		# plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN], label="normalised real spectrum to componentise")
 		flux = sp.ndimage.gaussian_filter(subset[FLUX_COLUMN], convolution_range)
 		interp = interp1d(subset[WAVELENGTH_COLUMN], flux, kind='linear')
 		flux = interp(spectrum_to_decompose[WAVELENGTH_COLUMN].to(u.Angstrom))
 		flux = convert_counts_to_Janskys(spectrum_to_decompose[WAVELENGTH_COLUMN], flux)
-		# flux = sp.signal.medfilt(flux, kernel_size=[5])
-		# plt.show()
 		flux = normalise_counts(spectrum_to_decompose[WAVELENGTH_COLUMN], flux)
-		plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], flux)
-		# plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], flux, label="interpolated synthetic data onto the real spectral wavelengths")
-		# plt.legend()
-		# plt.show()
-		if A.size == 0:
-			A = np.empty((len(flux), 0))
-		A = np.column_stack((A, flux))
-	plt.show()
+		return flux
+	
+	results = Parallel(n_jobs=-1, prefer="threads")(
+		delayed(process_single_T_eff)(T_eff) for T_eff in available_T_effs
+		)
+	A = np.column_stack(results)
 	print("minimising")
 	# assume that w \in [0,1] : but I think this will only be true for real data if normalisation has been done correctly (???)
 	result = sp.optimize.lsq_linear(A, spectrum_to_decompose[FLUX_COLUMN], bounds = (0, 100))#, tol=1e-15, lsmr_tol=1e-10, max_iter=2000)
@@ -125,10 +121,10 @@ if __name__ == "__main__":
 
 	# # # plot some data # # #
 	plt.plot(available_T_effs, result.x, color="blue", linestyle="dashed", marker="o", alpha=0.7, label="found weights")
-
 	plt.xlabel("Temperature / K")
 	plt.ylabel("weight / unitless")
-
+	plt.xticks(np.arange(np.min(available_T_effs) / u.K, np.max(available_T_effs) / u.K + 1, 50) * u.K)
+	plt.grid()
 	plt.legend()
 	plt.show()
 
