@@ -45,7 +45,7 @@ def read_JWST_fits(fits_absolute_path : Path) -> QTable:
 		data = hdul[HDU_INDEX].data
 		hdr = hdul[HDU_INDEX].header
 		print(repr(hdr))
-		INTEGRATION_INDEX : int = 100
+		INTEGRATION_INDEX : int = 0
 		# print("[SPECTRUM COMPONENT ANALYSER] : external spectrum found & loaded in")
 		spectrum = QTable()
 		spectrum[WAVELENGTH_COLUMN] = data["WAVELENGTH"][INTEGRATION_INDEX] * u.um

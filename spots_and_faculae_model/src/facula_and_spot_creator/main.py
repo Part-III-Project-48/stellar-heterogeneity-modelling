@@ -60,7 +60,7 @@ from specutils.fitting import fit_generic_continuum, fit_continuum
 from specutils import SpectralRegion
 from astropy.visualization import quantity_support
 
-def normalise_counts(wavelengths : np.array, counts : np.array, normalised_point = 2.2 * u.um, smoothing_range = 0.5 * u.um) -> np.array:
+def normalise_Janskys(wavelengths : np.array, counts : np.array, normalised_point = 2.2 * u.um, smoothing_range = 0.5 * u.um) -> np.array:
 	"""
 	this will fail if wavelengths does not span at least 0.5um
 	
@@ -128,7 +128,7 @@ def get_composite_spectrum(star_T_eff_Kelvin : float,
 		# normalise the sub spectrum somehow? rn this isn't physical; I assume we need to convert to energy per metre^2 or some analogy to that. this is just a placeholder. ig we want the property that the final energy contained in the spectrum corresponds to some fittable energy / the actual energy of the star ?
 		normalising_constant = sp.integrate.simpson(sub_spectrum[FLUX_COLUMN], x=sub_spectrum[WAVELENGTH_COLUMN])
 		# sub_spectrum[FLUX_COLUMN] /= normalising_constant ## including this breaks b in component_analyzer: aka we need to normalise everything or nothing to maintain consistency
-		sub_spectrum[FLUX_COLUMN] = normalise_counts(sub_spectrum[WAVELENGTH_COLUMN], sub_spectrum[FLUX_COLUMN])
+		sub_spectrum[FLUX_COLUMN] = normalise_Janskys(sub_spectrum[WAVELENGTH_COLUMN], sub_spectrum[FLUX_COLUMN])
 		sub_spectrum[FLUX_COLUMN] *= weight
 		
 		if len(spectrum) != 0:

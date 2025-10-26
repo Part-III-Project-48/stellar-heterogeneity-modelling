@@ -9,6 +9,7 @@ import astropy
 from astropy.table import QTable
 import numpy as np
 from matplotlib import pyplot as plt
+import pandas as pd
 import scipy as sp
 from astropy.visualization import quantity_support
 from tqdm import tqdm
@@ -18,7 +19,7 @@ from scipy.interpolate import interp1d
 from astropy.units import Quantity
 from joblib import Parallel, delayed
 
-from facula_and_spot_creator.main import normalise_counts, get_example_spectrum, FeH, log_g, old_normalise_flux
+from facula_and_spot_creator.main import normalise_Janskys, get_example_spectrum, FeH, log_g, old_normalise_flux
 from phoenix_grid_creator.fits_to_hdf5 import FLUX_COLUMN, TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN
 from phoenix_grid_creator.basic_plotter import get_hdf5_data
 from spectrum_component_analyser.external_spectrum_reader import get_external_spectra, read_JWST_fits
@@ -27,7 +28,7 @@ from spectrum_component_analyser.external_spectrum_reader import get_external_sp
 
 from astropy.constants import h, c
 
-def convert_counts_to_Janskys(wavelength : np.array, counts : np.array):
+def convert_flux_to_Janskys(wavelength : np.array, counts : np.array):
 	"""
 	wavelength should be an array of astropy quantities (with units of length)
 	"""
@@ -51,8 +52,9 @@ if __name__ == "__main__":
 	absolute_external_spectrum = external_spectrum_path.resolve()
 
 	spectrum_to_decompose = read_JWST_fits(absolute_external_spectrum)
-	spectrum_to_decompose = spectrum_to_decompose[np.isfinite(spectrum_to_decompose[FLUX_COLUMN])]
-	spectrum_to_decompose = spectrum_to_decompose[spectrum_to_decompose[FLUX_COLUMN] != np.nan]
+	orig_spectrum_to_decompose = spectrum_to_decompose
+	spectrum_to_decompose = spectrum_to_decompose[np.isfinite(orig_spectrum_to_decompose[FLUX_COLUMN])]
+	
 	# spectrum_to_decompose = spectrum_to_decompose[(0.5 * u.um <= spectrum_to_decompose[WAVELENGTH_COLUMN])]
 	# plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN])
 	# plt.show()
@@ -69,7 +71,7 @@ if __name__ == "__main__":
 	# spectrum_to_decompose[FLUX_COLUMN] *= 10e10
 
 	# plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN], label="unnormalised real spectrum to componentise")
-	spectrum_to_decompose[FLUX_COLUMN] = normalise_counts(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN])
+	spectrum_to_decompose[FLUX_COLUMN] = normalise_Janskys(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN])
 	# spectrum_to_decompose[FLUX_COLUMN] = sp.signal.medfilt(spectrum_to_decompose[FLUX_COLUMN], kernel_size=[5])
 	# plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN], label="normalised real spectrum to componentise")
 	# plt.legend()
@@ -87,38 +89,31 @@ if __name__ == "__main__":
 	log_gs = astropy.table.unique(all_data, keys=[LOGG_COLUMN])[LOGG_COLUMN]
 
 	JWST_resolution = .001 * u.um # we will convolve our simulated data over this range before sampling it
-	
+
+	print(spectrum_to_decompose)
+
 	def process_single_spectral_component(T_eff : Quantity[u.K], FeH : float, log_g : float):
 		subset = all_data[(all_data[TEFF_COLUMN] == T_eff) &
 						  (all_data[FEH_COLUMN] == FeH) &
 						  (all_data[LOGG_COLUMN] == log_g)]
-		index_per_wavelength = len(subset[WAVELENGTH_COLUMN]) / (np.max(subset[WAVELENGTH_COLUMN]) - np.min(subset[WAVELENGTH_COLUMN]))
-		convolution_range = int(index_per_wavelength * JWST_resolution) # in number of adjacent points to consider
-		# plt.plot(subset[WAVELENGTH_COLUMN], subset[FLUX_COLUMN] / np.max(subset[FLUX_COLUMN]), label="pre conv")
-		flux = sp.ndimage.gaussian_filter(subset[FLUX_COLUMN], convolution_range)
-		# plt.plot(subset[WAVELENGTH_COLUMN], flux / np.max(flux), label="post conv, all")
-		interp = interp1d(subset[WAVELENGTH_COLUMN], flux, kind='linear')
-		flux = interp(spectrum_to_decompose[WAVELENGTH_COLUMN].to(u.Angstrom))
-		flux = convert_counts_to_Janskys(spectrum_to_decompose[WAVELENGTH_COLUMN], flux)
-		flux = normalise_counts(spectrum_to_decompose[WAVELENGTH_COLUMN], flux)
-		# plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], flux, label="post conv, windowed")
-		# plt.legend()
-		# plt.show()
+		
+		# remove the indices that were nan in the spectrum
+		subset = subset[np.isfinite(orig_spectrum_to_decompose[FLUX_COLUMN])]
+
+		flux = convert_flux_to_Janskys(spectrum_to_decompose[WAVELENGTH_COLUMN], subset[FLUX_COLUMN])
+		flux = normalise_Janskys(spectrum_to_decompose[WAVELENGTH_COLUMN], flux)
 		return flux
 
 	results = Parallel(n_jobs=-1, prefer="threads")(
 		delayed(process_single_spectral_component)(T_eff, FeH, log_g) for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=len(T_effs) * len(FeHs) * len(log_gs), desc="Appending values to A matrix...")
 		)
+	
 	A = np.column_stack(results)
 	print("minimising")
 	# assume that w \in [0,1] : but I think this will only be true for real data if normalisation has been done correctly (???)
-	result = sp.optimize.lsq_linear(A, spectrum_to_decompose[FLUX_COLUMN], bounds = (0, 1))#, tol=1e-15, lsmr_tol=1e-10, max_iter=2000)
-	# alternative fortran method
-	# result = sp.optimize.nnls(A, spectrum_to_decompose[FLUX_COLUMN])
+	result = sp.optimize.lsq_linear(A, spectrum_to_decompose[FLUX_COLUMN], bounds = (0, 1), verbose = 2, max_iter=200)#, tol=1e-15, lsmr_tol=1e-10, max_iter=2000)
 	print(result)
 	print(f"sum of weights={np.sum(result.x)}")
-	# plt.plot(result[0])
-	# plt.show()
 
 	# # # plot some data # # #
 
@@ -129,18 +124,36 @@ if __name__ == "__main__":
 		result_map[key] = i
 		i += 1
 	
-	for FeH, log_g in product(FeHs, log_gs):
-		ys = []
-		for T_eff in T_effs:
-			ys.append(result.x[result_map[(T_eff, FeH, log_g)]])
-		plt.plot(T_effs, ys, linestyle="dashed", marker="o", alpha=0.7, label=f"FeH={FeH}, log_g={log_g}")
+		from phoenix_grid_creator.fits_to_hdf5 import TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN
+
+	WEIGHT_COLUMN : str = "weight"
+
+	hash_map = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WEIGHT_COLUMN])
+
+	for T_eff, FeH, log_g in product(T_effs, FeHs, log_gs):
+		new_row = {TEFF_COLUMN: T_eff, FEH_COLUMN: FeH, LOGG_COLUMN: log_g, WEIGHT_COLUMN: result.x[result_map[(T_eff, FeH, log_g)]]}
+		hash_map = pd.concat([hash_map, pd.DataFrame([new_row])], ignore_index=True)
 	
-	plt.title("found weights")
-	plt.xlabel("Temperature / K")
-	plt.ylabel("weight / unitless")
-	plt.xticks(np.arange(np.min(T_effs) / u.K, np.max(T_effs) / u.K + 1, 50) * u.K)
-	plt.grid()
-	plt.legend()
+	print(hash_map.sort_values(WEIGHT_COLUMN))
+	
+	fig, axes = plt.subplots(1, len(log_gs), figsize=(5*len(log_gs), 4), sharex=True, sharey=True)
+
+	for i, log_g in enumerate(log_gs):
+		subset = hash_map[hash_map[LOGG_COLUMN] == log_g]
+		x_vals = [a.value for a in subset[TEFF_COLUMN]]
+		y_vals = subset[FEH_COLUMN]
+		z_vals = subset[WEIGHT_COLUMN]
+
+		sc = axes[i].scatter(x_vals, y_vals, c=z_vals, cmap='viridis', vmin=0, vmax=1)
+
+		axes[i].set_title(f"log_g={log_g}")
+		axes[i].set_xlabel("Temperature / K")
+		axes[i].set_ylabel("FeHs / relative to solar")
+		# axes[i].set_xticks(np.arange(np.min(T_effs) / u.K, np.max(T_effs) / u.K + 1, 50) * u.K)
+		axes[i].grid()
+	
+	cbar = fig.colorbar(sc, ax=axes, orientation='vertical', fraction=0.05, pad=0.04)
+	cbar.set_label("Weights")
 	plt.show()
 
 	plt.plot(spectrum_to_decompose[WAVELENGTH_COLUMN], spectrum_to_decompose[FLUX_COLUMN], label="experimental spectrum")

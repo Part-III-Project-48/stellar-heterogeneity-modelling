@@ -5,6 +5,7 @@ this file should just be run once when you want to create the data grid, which i
 
 # external imports
 from io import BytesIO
+from joblib import Parallel, delayed
 import pandas as pd
 import requests
 from tqdm import tqdm
@@ -56,18 +57,18 @@ SAVE_TO_HDF : bool = True
 HDF5_FILENAME_TO_SAVE : str = 'spectral_grid.hdf5'
 
 # data to request (these numbers have to be included in the PHOENIX dataset; view PHOENIX_filename_conventions.py for which are allowed)
-T_effs = np.arange(3300, 3801, 100) * u.K
-FeHs = np.arange(-0.5, 0.6, 0.5)
-log_gs = np.arange(2.5, 5.6, 0.5)
+T_effs = np.arange(2300, 4001, 100) * u.K
+FeHs = np.array([-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1])
+log_gs = np.arange(0, 6.1, 0.5)
 alphaM = 0
 
 # seems like the only data I can find is LTE data (?)
 lte : bool = True
 
 #debug override for testing - this is the data we collect; the data we save is specified below (if interpolating // regularising)
-# T_effs = np.array([3500])
+# T_effs = np.array([3500, 3600]) * u.K
 # FeHs = np.array([0, 1])
-# log_gs = np.array([3])
+# log_gs = np.array([4.5, 5])
 
 # # # flags # # #
 
@@ -76,10 +77,12 @@ REGULARISE_WAVELENGTH_GRID : bool = True
 MIN_WAVELENGTH_ANGSTROMS : float = 0.5 * 10**(-6) * 10**(10)
 MAX_WAVELENGTH_ANGSTROMS : float = 5.5 * 10**(-6) * 10**(10) # phoenix only goes up to 5.5?
 WAVELENGTH_NUMBER_OF_POINTS : int = 10_000
-
 regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_ANGSTROMS, WAVELENGTH_NUMBER_OF_POINTS)
-path = Path("spots_and_faculae_model/assets/MAST_2025-10-26T08_10_09.071Z/MAST_2025-10-26T08_10_09.071Z/JWST/jw02722003001_04101_00001-seg001_nis_x1dints.fits")
-regularised_wavelengths = read_JWST_fits(path)[WAVELENGTH_COLUMN]
+
+# ipynb files complain about this otherwise
+if __name__ == "__main__":
+	path = Path("spots_and_faculae_model/assets/MAST_2025-10-26T08_10_09.071Z/MAST_2025-10-26T08_10_09.071Z/JWST/jw02722003001_04101_00001-seg001_nis_x1dints.fits")
+	regularised_wavelengths = read_JWST_fits(path)[WAVELENGTH_COLUMN]
 
 # temperature interpolation
 REGULARISE_TEMPERATURE_GRID : bool = False
@@ -177,23 +180,14 @@ if __name__ == "__main__":
 
 	# now use defined ranges for the data we want, process it and save this to a hdf5 file
 
-	total_number_of_files : int = len(T_effs) * len(FeHs) * len(log_gs)
-
-	# we will save our grid to this df
-	df = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN])
-
-	file_number = 0
-
-	for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=total_number_of_files, desc="Downloading .fits spectra files"):
+	def download_spectrum(T_eff, FeH, log_g):		
 		
-		if file_number >= DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD:
-			break
-		
-		file_number += 1
-		
-		file = get_file_name(lte, T_eff, log_g, FeH, alphaM)
-		url = get_url(file)
-		
+		try:
+			file = get_file_name(lte, T_eff, log_g, FeH, alphaM)
+			url = get_url(file)
+		except ValueError as e:
+			tqdm.write(f"[PHOENIX GRID CREATOR] : filename or urlname error: {e}. continuing onto next requested spectrum")
+			return
 		try:
 			response = requests.get(url)
 			response.raise_for_status()
@@ -201,7 +195,7 @@ if __name__ == "__main__":
 			tqdm.write(f"[PHOENIX GRID CREATOR] : HTTPError raised with the following parameters.\nlte: {lte}\nT_eff={T_eff}\nlog_g={log_g}\nFeH={FeH}\nalphaM={alphaM}")
 			tqdm.write(f"url = {url}")
 			tqdm.write("\n continuing with the next file...")
-			continue
+			return
 		
 		# the index of the header data unit the data we want is in (looks to be 0 being the spectra, and 1 being the abundances, and those are the only 2 HDUs in the .fits files)
 		SPECTRA_HDU_INDEX = 0
@@ -240,11 +234,14 @@ if __name__ == "__main__":
 			# this might be quicker to stream data to disc rather than creating a massive df
 			# temp_df.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True, append=True)
 			# continue
-			
-			if len(main_table) > 0:  # check if table is non-empty
-				t = vstack([main_table, t])
-			else:
-				main_table = t
+
+			return t
+
+	tables = Parallel(n_jobs=-1, prefer="threads")(
+		delayed(download_spectrum)(T_eff, FeH, log_g) for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=len(T_effs) * len(FeHs) * len(log_gs), desc="Downloading .fits spectra files")
+		)
+	
+	main_table = vstack(tables)
 	
 	if REGULARISE_TEMPERATURE_GRID:
 		
@@ -298,34 +295,26 @@ if __name__ == "__main__":
 	# pandas tables can't save their metadata into a HDF5 directly (can use HDFStore or smthn) - but astropy tables can have metadata, units etc. so lets convert to an astropy table
 
 	# add astropy units to columns (this will be stored in metadata and can be read back out into an astropy QTable)
-	from astropy.units import imperial
-	imperial.enable()
-	main_table[TEFF_COLUMN].unit = u.Kelvin
+	# main_table[TEFF_COLUMN].unit = u.Kelvin
 	main_table[TEFF_COLUMN].desc = "effective surface temperature"
 
-	main_table[FEH_COLUMN].unit = u.dimensionless_unscaled
+	# main_table[FEH_COLUMN].unit = u.dimensionless_unscaled
 	main_table[FEH_COLUMN].desc = "relative to solar metallacity"
 
 	# astropy seems to have a hard time reading in log quantities from hdf5 files. so lets just save this as unitless
-	main_table[LOGG_COLUMN].unit = u.dimensionless_unscaled
+	# main_table[LOGG_COLUMN].unit = u.dimensionless_unscaled
 	main_table[LOGG_COLUMN].desc = "log_10(u.cm * u.second**(-2)) of the surface gravity"
 
-	main_table[WAVELENGTH_COLUMN].unit = u.Angstrom
+	# main_table[WAVELENGTH_COLUMN].unit = u.Angstrom
 
-	main_table[FLUX_COLUMN].unit = u.dimensionless_unscaled
+	# main_table[FLUX_COLUMN].unit = u.dimensionless_unscaled
 	main_table[FLUX_COLUMN].desc = "in counts"
-
-	# remove the wavelength ranges we don't want
-
-	MIN_WAVELENGTH = 0 * u.micron
-	MAX_WAVELENGTH = 15 * u.micron
-	t = t[(MIN_WAVELENGTH <= t[WAVELENGTH_COLUMN]) & (t[WAVELENGTH_COLUMN] <= MAX_WAVELENGTH)]
 
 	if CONVERT_WAVELENGTHS_TO_AIR:
 		t[WAVELENGTH_COLUMN] = specutils.utils.wcs_utils.vac_to_air(t[WAVELENGTH_COLUMN])
 
 	# add some metadata to the QTable e.g. (wavelength medium = air, source, date)
-	t.meta = {"wavelength medium" : "air" if CONVERT_WAVELENGTHS_TO_AIR else "vacuum",
+	main_table.meta = {"wavelength medium" : "air" if CONVERT_WAVELENGTHS_TO_AIR else "vacuum",
 				"source" : "https://phoenix.astro.physik.uni-goettingen.de/data/",
 				"date this hdf5 file was created" : datetime.datetime.now(),
 				"description" : "if it includes interpolated values, then a specified list of wavelengths and/or temperatures were given, and the simulated data was (linearly) interpolated onto those values (aka; information was removed and accuracy is not guaranteed)",
@@ -339,7 +328,7 @@ if __name__ == "__main__":
 	
 	if SAVE_TO_HDF:
 		print("[PHOENIX GRID CREATOR] : writing dataframe to hdf5...")
-		t.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True)
+		main_table.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True)
 		print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
 
 
