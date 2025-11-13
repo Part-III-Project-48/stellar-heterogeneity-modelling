@@ -53,7 +53,7 @@ LOGG_COLUMN = "log_g / log(cm s^(-2))"
 WAVELENGTH_COLUMN = "wavelength / angstroms"
 FLUX_COLUMN = "flux / erg / (s * cm**2 * cm)"
 
-SAVE_TO_HDF : bool = True
+SAVE_TO_HDF : bool = False
 HDF5_FILENAME_TO_SAVE : str = 'spectral_grid.hdf5'
 
 # data to request (these numbers have to be included in the PHOENIX dataset; view PHOENIX_filename_conventions.py for which are allowed)
@@ -64,12 +64,6 @@ alphaM = 0
 
 # seems like the only data I can find is LTE data (?)
 lte : bool = True
-
-#debug override for testing - this is the data we collect; the data we save is specified below (if interpolating // regularising)
-# T_effs = np.array([3500, 3600]) * u.K
-# FeHs = np.array([0, 1])
-# log_gs = np.array([4.5, 5])
-
 # # # flags # # #
 
 REGULARISE_WAVELENGTH_GRID : bool = True
@@ -83,6 +77,7 @@ regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_A
 if __name__ == "__main__":
 	path = Path("spots_and_faculae_model/assets/MAST_2025-10-26T08_10_09.071Z/MAST_2025-10-26T08_10_09.071Z/JWST/jw02722003001_04101_00001-seg001_nis_x1dints.fits")
 	regularised_wavelengths = read_JWST_fits(path)[WAVELENGTH_COLUMN]
+	print(np.all(np.diff(regularised_wavelengths) > 0))
 
 # temperature interpolation
 REGULARISE_TEMPERATURE_GRID : bool = False

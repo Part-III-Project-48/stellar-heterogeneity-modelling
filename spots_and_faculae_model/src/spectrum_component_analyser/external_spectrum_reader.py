@@ -40,11 +40,11 @@ def read_JWST_fits(fits_absolute_path : Path) -> QTable:
 		raise FileNotFoundError(f"JWST spectrum file not found at : {fits_absolute_path}.")
 
 	with fits.open(fits_absolute_path) as hdul:
-		hdul.info()
+		# hdul.info()
 		HDU_INDEX = 3 # aka EXTRACT1D
 		data = hdul[HDU_INDEX].data
 		hdr = hdul[HDU_INDEX].header
-		print(repr(hdr))
+		# print(repr(hdr))
 		INTEGRATION_INDEX : int = 0
 		# print("[SPECTRUM COMPONENT ANALYSER] : external spectrum found & loaded in")
 		spectrum = QTable()
