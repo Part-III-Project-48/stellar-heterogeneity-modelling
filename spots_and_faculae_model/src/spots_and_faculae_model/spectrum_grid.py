@@ -5,8 +5,16 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from scipy.interpolate import interp1d
+import astropy
+import specutils
 
-from phoenix_grid_creator.fits_to_hdf5 import TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN
+# units should be stored in the astropy quantity anyway
+# changing these is fine, as long as a new spectral grid is created which uses these column names
+TEFF_COLUMN = "T_eff / K"
+FEH_COLUMN = "Fe/H / relative to solar"
+LOGG_COLUMN = "log_g / log(cm s^(-2))"
+WAVELENGTH_COLUMN = "wavelength / angstroms"
+FLUX_COLUMN = "flux / erg / (s * cm**2 * cm)"
 	
 class spectrum_grid:
 	"""
@@ -19,6 +27,7 @@ class spectrum_grid:
 		"""default initialiser from a qtable object"""
 		self.Table = table
 	
+		return
 		# pandas tables can't save their metadata into a HDF5 directly (can use HDFStore or smthn) - but astropy tables can have metadata, units etc. so lets convert to an astropy table
 
 		# add astropy units to columns (this will be stored in metadata and can be read back out into an astropy QTable)
@@ -38,7 +47,7 @@ class spectrum_grid:
 		self.Table[FLUX_COLUMN].desc = "in erg s^-1 cm^-2 cm^-1]"
 
 	@classmethod
-	def from_hdf5_file(cls, absolute_hdf5_path : Path) -> None:
+	def from_hdf5_file(cls, absolute_hdf5_path : Path):
 		"""Alternative constructor from a hdf5 path"""
 		table = QTable.read(absolute_hdf5_path, format="hdf5")
 		return cls(table)
@@ -60,7 +69,8 @@ class spectrum_grid:
 		self.Table.write(name, path = absolute_path, serialize_meta=True, overwrite=Overwrite)
 		print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
 
-
+	def convert_vacuum_to_air(self) -> None:
+		self.Table[WAVELENGTH_COLUMN] = specutils.utils.wcs_utils.vac_to_air(self.Table[WAVELENGTH_COLUMN])
 
 	def regularise_temperatures(self, new_T_effs : np.array) -> None:
 		"""
@@ -114,25 +124,27 @@ class spectrum_grid:
 
 
 	# just to expose stuff
+	# these give the list of unique T_effs : if you wanna do slicing etc you'll need the whole self.Table object
+	# this might be slow / a bottleneck
 	@property
 	def T_effs(self):
-		return self.Table[TEFF_COLUMN]
+		return astropy.table.unique(self.Table, keys=[TEFF_COLUMN])[TEFF_COLUMN]
 
 	@property
 	def FeHs(self):
-		return self.Table[FEH_COLUMN]
+		return astropy.table.unique(self.Table, keys=[FEH_COLUMN])[FEH_COLUMN]
 
 	@property
 	def log_gs(self):
-		return self.Table[LOGG_COLUMN]
+		return astropy.table.unique(self.Table, keys=[LOGG_COLUMN])[LOGG_COLUMN]
 
 	@property
 	def wavelengths(self):
-		return self.Table[WAVELENGTH_COLUMN]
+		return astropy.table.unique(self.Table, keys=[WAVELENGTH_COLUMN])[WAVELENGTH_COLUMN]
 
 	@property
 	def fluxes(self):
-		return self.Table[FLUX_COLUMN]
+		return astropy.table.unique(self.Table, keys=[FLUX_COLUMN])[FLUX_COLUMN]
 	
 
 

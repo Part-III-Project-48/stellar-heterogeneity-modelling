@@ -28,13 +28,10 @@ from astropy.table import Table, vstack
 # internal imports
 from phoenix_grid_creator.PHOENIX_filename_conventions import *
 from spots_and_faculae_model.spectrum_grid import spectrum_grid
+from spots_and_faculae_model.external_spectrum_reader import read_JWST_fits
 
 # column names
-# TEFF_COLUMN = "T_eff / K"
-# FEH_COLUMN = "Fe/H / relative to solar"
-# LOGG_COLUMN = "log_g / log(cm s^(-2))"
-# WAVELENGTH_COLUMN = "wavelength / angstroms"
-# FLUX_COLUMN = "flux / erg / (s * cm**2 * cm)"
+
 
 SAVE_TO_HDF : bool = False
 SPECTRAL_GRID_FILENAME : str = 'spectral_grid.hdf5'
@@ -45,6 +42,8 @@ FeHs = np.array([-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1])
 log_gs = np.arange(0, 6.1, 0.5)
 alphaM = 0
 
+T_effs = [2500 * u.K]
+
 # seems like the only data I can find is LTE data (?)
 lte : bool = True
 # # # flags # # #
@@ -53,14 +52,14 @@ REGULARISE_WAVELENGTH_GRID : bool = True
 # the wavelength in the df starts out in angstroms (we add units to an astropy QTable later)
 MIN_WAVELENGTH_ANGSTROMS : float = 0.5 * 10**(-6) * 10**(10)
 MAX_WAVELENGTH_ANGSTROMS : float = 5.5 * 10**(-6) * 10**(10) # phoenix only goes up to 5.5?
-WAVELENGTH_NUMBER_OF_POINTS : int = 10_000
-regularised_wavelengths = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_ANGSTROMS, WAVELENGTH_NUMBER_OF_POINTS)
+WAVELENGTH_NUMBER_OF_POINTS : int = 5
+regularised_wavelengths : np.array = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_ANGSTROMS, WAVELENGTH_NUMBER_OF_POINTS) * u.Angstrom
 
 # ipynb files complain about this otherwise
 if __name__ == "__main__":
+	# get the wavelengths from a jwst file and use that to convolve against
 	path = Path("spots_and_faculae_model/assets/MAST_2025-10-26T08_10_09.071Z/MAST_2025-10-26T08_10_09.071Z/JWST/jw02722003001_04101_00001-seg001_nis_x1dints.fits")
-	regularised_wavelengths = read_JWST_fits(path)[WAVELENGTH_COLUMN]
-	print(np.all(np.diff(regularised_wavelengths) > 0))
+	# regularised_wavelengths = read_JWST_fits(path).Wavelengths
 
 # temperature interpolation
 REGULARISE_TEMPERATURE_GRID : bool = False
@@ -102,7 +101,7 @@ def get_wavelength_grid() -> np.ndarray:
 
 	return wavelengths
 
-def download_spectrum(T_eff, FeH, log_g) -> spectrum_grid:
+def download_spectrum(T_eff, FeH, log_g, wavelengths : np.array) -> spectrum_grid:
 	"""
 	well use this function to parallelise getting the spectra
 	"""
@@ -159,17 +158,14 @@ def download_spectrum(T_eff, FeH, log_g) -> spectrum_grid:
 
 		return t
 
-# # # # # # # # # #
-
-if __name__ == "__main__":
+def main():
 
 	wavelengths = get_wavelength_grid()
 
 	# now use defined ranges for the data we want, process it and save this to a hdf5 fil
-
-	# list of spectrum_grids
+	
 	grids = Parallel(n_jobs=-1, prefer="threads")(
-		delayed(download_spectrum)(T_eff, FeH, log_g) for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=len(T_effs) * len(FeHs) * len(log_gs), desc="Downloading .fits spectra files")
+		delayed(download_spectrum)(T_eff, FeH, log_g, wavelengths) for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=len(T_effs) * len(FeHs) * len(log_gs), desc="Downloading .fits spectra files")
 		)
 	
 	grid = spectrum_grid(vstack([grid.Table for grid in grids]))
@@ -178,7 +174,7 @@ if __name__ == "__main__":
 		grid.regularise_temperatures(regularised_temperatures)
 
 	if CONVERT_WAVELENGTHS_TO_AIR:
-		t[WAVELENGTH_COLUMN] = specutils.utils.wcs_utils.vac_to_air(t[WAVELENGTH_COLUMN])
+		grid.convert_vacuum_to_air()
 
 	# add some metadata to the QTable e.g. (wavelength medium = air, source, date)
 	grid.Table.meta = {"wavelength medium" : "air" if CONVERT_WAVELENGTHS_TO_AIR else "vacuum",
@@ -198,4 +194,9 @@ if __name__ == "__main__":
 
 
 
-
+if __name__ == "__main__":
+    import cProfile, pstats
+    with cProfile.Profile() as pr:
+        main()   # or whatever entry point you want to run
+    stats = pstats.Stats(pr)
+    # stats.sort_stats("tottime").print_stats(20)

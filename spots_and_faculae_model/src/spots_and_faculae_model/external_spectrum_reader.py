@@ -6,9 +6,12 @@ import numpy as np
 from astropy.table import QTable
 # from astropy.visualization import quantity_support
 
-from phoenix_grid_creator.fits_to_hdf5 import WAVELENGTH_COLUMN, FLUX_COLUMN
+from spots_and_faculae_model.spectrum import spectrum
 
-def read_JWST_fits(fits_absolute_path : Path) -> QTable:
+def read_JWST_fits(fits_absolute_path : Path) -> spectrum:
+	"""
+	used for reading from fits files for 1d int data from i think JWST 2c or 2b files?
+	"""
 	if not fits_absolute_path.exists():
 		raise FileNotFoundError(f"JWST spectrum file not found at : {fits_absolute_path}.")
 
@@ -20,11 +23,11 @@ def read_JWST_fits(fits_absolute_path : Path) -> QTable:
 		# print(repr(hdr))
 		INTEGRATION_INDEX : int = 0
 		# print("[SPECTRUM COMPONENT ANALYSER] : external spectrum found & loaded in")
-		spectrum = QTable()
-		spectrum[WAVELENGTH_COLUMN] = data["WAVELENGTH"][INTEGRATION_INDEX] * u.um
-		spectrum[FLUX_COLUMN] = data["FLUX"][INTEGRATION_INDEX] * u.Jy
+		# these strings are unique to JWST 1D 
+		spec = spectrum(wavelengths=data["WAVELENGTH"][INTEGRATION_INDEX] * u.um,
+				  fluxes = data["FLUX"][INTEGRATION_INDEX] * u.Jy)
 	
-	return spectrum
+	return spec
 
 
 
