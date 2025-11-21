@@ -6,25 +6,30 @@ this file defines the filename formats used by PHOENIX in a readable way
 
 GRID : str = "PHOENIX-ACES-AGSS-COND-2011"
 
+from astropy.units import Quantity
+import astropy.units as u
+
 def get_file_name(lte : bool,
-				  T_eff : int,
+				  T_eff : Quantity[u.K],
 				  log_g : float,
 				  FeH : float,
 				  alphaM : float) -> str:
 	
 	### --- check for step and range validity --- ###
-	
+	# when checking if values are multiplies of floats (e.g. 0.5); multiply by 10 to avoid float division issues
+
+	T_eff = int(T_eff.value)
 	if not ((2_300 <= T_eff <= 7_000 and T_eff % 100 == 0) or (7_000 <= T_eff <= 12000 and T_eff % 200 == 0)):
-		raise ValueError("T_eff value not in range or of incorrect step")
+		raise ValueError(f"T_eff = {T_eff} not in range or of incorrect step")
 	
-	if not (0.0 <= log_g <= 6.0 and log_g % 0.5 == 0):
-		raise ValueError("log_g value not in range or of incorrect step")
+	if not (0.0 <= log_g <= 6.0 and (10*log_g % 5) == 0):
+		raise ValueError(f"log_g = {log_g} not in range or of incorrect step")
 	
-	if not ((-4.0 <= FeH <= -2.0 and FeH % 1.0 == 0) or (-2.0 <= FeH <= 1.0 and FeH % 0.5 == 0)):
-		raise ValueError("FeH value not in range or of incorrect step")
+	if not ((-4.0 <= FeH <= -2.0 and (10*FeH % 10) == 0) or (-2.0 <= FeH <= 1.0 and (10*FeH % 5) == 0)):
+		raise ValueError(f"FeH = {FeH} not in range or of incorrect step")
 	
-	if not (-0.2 <= alphaM <= 1.2 and alphaM % 0.2 == 0):
-		raise ValueError("alphaM value not in range or of incorrect step")
+	if not (-0.2 <= alphaM <= 1.2 and (10*alphaM % 2) == 0):
+		raise ValueError(f"alphaM = {alphaM} not in range or of incorrect step")
 	
 	### --- check for data availability --- ###
 	

@@ -8,9 +8,32 @@ and from those weights we can tell the fractional area of each temperature
 TODO
 normalisation
 basic ML of some sort
+make a spectrum class that has all the things we need like normalisation etc
 
 add proof that the temperature interpolation is working to documentation.md
 
 ---
 
 add the full hdf5 file to a google drive (run on main pc to create)
+
+maybe convert fits_to_hdf5 to use astropy quantities... might be nice (kinda needed lmao)
+
+## notes: may as well remove out of range/bounds wavelengths before appending to df, even if we're not regularising the grid
+        
+stream data to hdf5? to make it a little less bad?
+
+can update wavelength regularisation to include gaussian convolution?
+
+we could test our model on the suns spectra as then maybe the % of area at different temperatures to T_eff might be known...
+
+idrk how the experimental data should be used? should i average over all the integration data? or just use the 1st one? etc
+
+also idrk about the smoothing im doing on the phoenix data to get it into JWST resolution, e.g. at ~2um it looks very smooth, much smoother than down below 1um
+
+THE question rn is : does PHOENIX library actually contain all the necessary data? i.e. is the residuals of my plots in main.ipynb from exoplanet stuff? or is there spikes that would appear at 0.1 FeH resolution etc that we're missing that we simply cannot optimise for with the current PHOENIX data?
+If we are SURE that a good optimisation of PHOENIX components HAS to span all the spectra needed for just stellar spectra, then the discepencies are expected (from exoplanet etc???)
+
+the numerically fitted spectrum looks to be like 2 indices shifted to the right compared to the experimental spectrum?
+
+maybe see if you can fit just 1 component to the spectra, and see how much worse/better that is than a sum of x components
+-> if its more or less just as good, then our model might not be doing anything that fancy atm

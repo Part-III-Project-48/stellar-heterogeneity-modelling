@@ -5,7 +5,7 @@ Cambridge Part III Project 48
 - PHOENIX homepage : [link](https://phoenix.astro.physik.uni-goettingen.de/)
 - PHOENIX reference paper : [link](https://arxiv.org/abs/1303.5632v2)
 
-NOTE: the ftp links on the PHOENIX website are broken. Converting the format to start with https:// works; see phoenix-grid-creator/README.md for an example
+NOTE: the ftp links on the PHOENIX website are broken. Converting the format to start with https:// works; see spots_and_faculae_model/README.md for an example
  
 # Conventions
 

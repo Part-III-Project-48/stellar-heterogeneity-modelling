@@ -47,3 +47,4 @@ https://phoenix.astro.physik.uni-goettingen.de/data/HiResFITS/PHOENIX-ACES-AGSS-
 # Notes
 
 - the only wavelength grid I can find is WAVE (not the AWAV) which is specified as VACUUM wavelengths. astropy specutils is used to convert from vacuum to air wavelength (this apparently has a low error)
+- there appears to be 1,569,128 wavelength points in total in the PHOENIX fits files I've checked 
