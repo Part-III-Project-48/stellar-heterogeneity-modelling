@@ -7,6 +7,10 @@ from tqdm import tqdm
 from scipy.interpolate import interp1d
 import astropy
 import specutils
+from astropy.units import Quantity
+import astropy.units as u
+
+from spots_and_faculae_model.spectrum import spectrum
 
 # units should be stored in the astropy quantity anyway
 # changing these is fine, as long as a new spectral grid is created which uses these column names
@@ -120,8 +124,32 @@ class spectrum_grid:
 	
 
 
+	# spectrum_to_decompose is temporary here; it can probably be changed to be self.wavelengths but that isn't tested
+	def process_single_spectral_component(self, T_eff : Quantity[u.K], FeH : float, log_g : float, mask : np.array, spectrum_to_decompose : np.array) -> np.array:
+		"""
+		returns a np array of astropy quantities with units of Janskys
+
+		Attributes
+		----------
+		mask : np.array
+			something of length of spectra stored in the spectral grid. contains False where infinities were found in the observed spectra to fit
 
 
+		"""
+		subset_table = self.Table[(self.Table[TEFF_COLUMN] == T_eff) &
+						  (self.Table[FEH_COLUMN] == FeH) &
+						  (self.Table[LOGG_COLUMN] == log_g)]
+		
+		subset : spectrum_grid = spectrum_grid(subset_table)
+		
+		# remove the indices that were nan in the spectrum
+		# must be in the same order as we did for the spectrum_to_decompose
+		subset.Table = subset.Table[mask] # should make the table's spectra have the same x axis (wavelengths) as the spectrum_to_decompose 
+		subset_spectrum = spectrum.from_phoenix_units(wavelengths=spectrum_to_decompose.Wavelengths, phoenix_fluxes=subset.Table[FLUX_COLUMN])
+		subset_spectrum.normalise_Janskys()
+		# subset_spectrum = subset_spectrum[(1.25 * u.um <= subset_spectrum.Wavelengths) & (subset_spectrum.Wavelengths <= 2 * u.um)]
+
+		return subset_spectrum.Fluxes
 
 	# just to expose stuff
 	# these give the list of unique T_effs : if you wanna do slicing etc you'll need the whole self.Table object
