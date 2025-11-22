@@ -96,6 +96,8 @@ class spectrum:
         so 1 Jy = PHOENIX units * wavelength / (frequency * c)
 
         e.g. see here https://physics.stackexchange.com/questions/725928/converting-between-f-nu-and-f-lambda-spectral-density
+        
+        might be also to do something like flux_si = flux_jy.to(u.W / (u.m**2 * u.Hz), equivalencies=u.spectral_density(wavelength)) instead of this manual method
         """
 
         converted_fluxes = phoenix_fluxes * wavelengths**2 / astropy.constants.c
