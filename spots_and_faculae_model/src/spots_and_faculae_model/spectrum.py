@@ -41,6 +41,7 @@ class spectrum:
         return len(self.Fluxes)
     
     def plot(self):
+        plt.clf()
         plt.title(f"Observational Spectrum for {self.Name}")
         plt.plot(self.Wavelengths, self.Fluxes)
         plt.show()

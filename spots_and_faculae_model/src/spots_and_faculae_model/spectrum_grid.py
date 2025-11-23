@@ -125,7 +125,7 @@ class spectrum_grid:
 
 
 	# spectrum_to_decompose is temporary here; it can probably be changed to be self.wavelengths but that isn't tested
-	def process_single_spectral_component(self, T_eff : Quantity[u.K], FeH : float, log_g : float, mask : np.array, spectrum_to_decompose : np.array) -> np.array:
+	def process_single_spectral_component(self, T_eff : Quantity[u.K], FeH : float, log_g : float, mask : np.array, spectrum_to_decompose : spectrum) -> np.array:
 		"""
 		returns a np array of astropy quantities with units of Janskys
 

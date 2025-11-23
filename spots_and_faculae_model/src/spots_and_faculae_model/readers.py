@@ -5,6 +5,7 @@ from astropy.table import QTable
 import astropy.units as u
 from astropy.io import fits
 
+import numpy as np
 from spots_and_faculae_model.spectrum import spectrum
 
 def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str = None, INTEGRATION_INDEX : int = 0) -> QTable:
@@ -51,6 +52,8 @@ def read_JWST_fits_all_spectra(fits_absolute_path : Path, verbose : bool = False
 		hdr = hdul[HDU_INDEX].header
 		
 		for integration_index in range(len(data["WAVELENGTH"])):
+			if (np.all(data["FLUX"][integration_index] == np.nan)):
+				print(f"[JWST READER] : integration index {integration_index} contains all nan fluxes")
 			# print("[SPECTRUM COMPONENT ANALYSER] : external spectrum found & loaded in")
 			# these column name strings are unique to JWST 1D 
 			spec : spectrum = spectrum(wavelengths = data["WAVELENGTH"][integration_index] * u.um,
@@ -61,5 +64,5 @@ def read_JWST_fits_all_spectra(fits_absolute_path : Path, verbose : bool = False
 				print(repr(hdr))
 			
 			spectra.append(spec)
-	
+			
 	return spectra

@@ -37,3 +37,10 @@ the numerically fitted spectrum looks to be like 2 indices shifted to the right 
 
 maybe see if you can fit just 1 component to the spectra, and see how much worse/better that is than a sum of x components
 -> if its more or less just as good, then our model might not be doing anything that fancy atm
+
+way better way of doing spectral grid would be a class
+contains a dataframe with 4 columns
+first 3 columns are the paramters
+but the 4th column is a reference to a spectrum object
+
+way better than this astropy stuff i think
