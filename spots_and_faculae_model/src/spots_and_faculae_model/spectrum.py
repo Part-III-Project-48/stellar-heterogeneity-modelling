@@ -9,23 +9,42 @@ import numpy as np
 import astropy.units as u
 import scipy as sp
 import astropy
+from astropy.visualization import quantity_support
+quantity_support()
+from matplotlib import pyplot as plt
 
 ## can do : update normalise jansksys to act on the spectrum class self and then update main.ipynb to use that
 
 class spectrum:
-    def __init__(self, wavelengths : np.array, fluxes : np.array):
+    def __init__(self, wavelengths : np.array, fluxes : np.array, name : str = None):
         """
         both arrays should be astropy quantities with units
         """
         self.Wavelengths = wavelengths
         self.Fluxes = fluxes
-    
+        self.Name : str = name
+
+        if len(wavelengths) != len(fluxes):
+            raise ValueError("wavelengths and fluxes must have the same length")
+
     def __getitem__(self, idx):
         """
         Allow slicing, indexing, and boolean masks.
         Returns a new spectrum with sliced wavelength and flux arrays.
         """
-        return spectrum(self.Wavelengths[idx], self.Fluxes[idx])
+        return spectrum(self.Wavelengths[idx], self.Fluxes[idx], name=self.Name)
+
+    def __len__(self):
+        if len(self.Wavelengths) != len(self.Fluxes):
+            raise ValueError("wavelengths and fluxes must have the same length. (Length is not well defined)")
+        
+        return len(self.Fluxes)
+    
+    def plot(self):
+        plt.clf()
+        plt.title(f"Observational Spectrum for {self.Name}")
+        plt.plot(self.Wavelengths, self.Fluxes)
+        plt.show()
 
     def normalise_Janskys(self, normalised_point = 2.2 * u.um, smoothing_range = 0.5 * u.um) -> np.array:
         """
@@ -78,6 +97,8 @@ class spectrum:
         so 1 Jy = PHOENIX units * wavelength / (frequency * c)
 
         e.g. see here https://physics.stackexchange.com/questions/725928/converting-between-f-nu-and-f-lambda-spectral-density
+        
+        might be also to do something like flux_si = flux_jy.to(u.W / (u.m**2 * u.Hz), equivalencies=u.spectral_density(wavelength)) instead of this manual method
         """
 
         converted_fluxes = phoenix_fluxes * wavelengths**2 / astropy.constants.c
