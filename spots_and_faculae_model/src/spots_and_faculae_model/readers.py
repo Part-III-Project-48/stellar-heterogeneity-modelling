@@ -33,7 +33,7 @@ def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str
 	
 	return spec
 
-def read_JWST_fits_all_spectra(fits_absolute_path : Path, verbose : bool = False, name : str = None) -> QTable:
+def read_JWST_fits_all_spectra(fits_absolute_path : Path, verbose : bool = False, name : str = None) -> list[spectrum]:
 	"""
 	Attributes
 	----------
