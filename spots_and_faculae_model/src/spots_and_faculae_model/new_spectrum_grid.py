@@ -19,19 +19,42 @@ FEH_COLUMN = "Fe/H / relative to solar"
 LOGG_COLUMN = "log_g / log(cm s^(-2))"
 WAVELENGTH_COLUMN = "wavelength / angstroms"
 FLUX_COLUMN = "flux / erg / (s * cm**2 * cm)"
+SPECTRUM_COLUMN : str = "spectrum object"
 	
-class spectrum_grid:
+class new_spectrum_grid:
 	"""
-	a wrapper for an astropy qtable which stores PHOENIX spectrum data.
+	a wrapper for a pandas dataframe which stores PHOENIX spectrum data in the format
+	T_eff | FeH | Log_g | spectrum object containing wavelength & fluxes
 	
-	typically will be convolved so that its resolution matches some known telescope
+	currently, the PHOENIX HDF5 data is convolved so that its resolution matches some known telescope
 	"""
 
-	def __init__(self, table : QTable = None):
+	def __init__(self, table : QTable = None, name : str = None):
 		"""default initialiser from a qtable object"""
 		self.Table = table
-	
-		return
+		self.FancyTable = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, SPECTRUM_COLUMN])
+		
+		for T_eff, FeH, log_g in tqdm(product(self.T_effs, self.FeHs, self.log_gs), total= len(self.T_effs) * len(self.FeHs) * len(self.log_gs), desc="Creating fancier spectral grid..."):
+			subset = self.Table[(self.Table[TEFF_COLUMN] == T_eff) &
+								(self.Table[FEH_COLUMN] == FeH) &
+								(self.Table[LOGG_COLUMN] == log_g)]
+			
+			spectrum_name : str = f"simulated phoenix spectrum for {name}" if name != None else f"simulated phoenix spectrum"
+			spec : spectrum = spectrum(wavelengths = subset[WAVELENGTH_COLUMN], fluxes = subset[FLUX_COLUMN], name=spectrum_name)
+			
+			new_row = pd.DataFrame({
+				TEFF_COLUMN : [T_eff],
+				FEH_COLUMN : [FeH],
+				LOGG_COLUMN : [log_g],
+				SPECTRUM_COLUMN : [spec]
+			})
+
+			print(new_row[TEFF_COLUMN][0])
+
+			self.FancyTable = pd.concat([self.FancyTable, new_row])
+			
+
+			
 		# pandas tables can't save their metadata into a HDF5 directly (can use HDFStore or smthn) - but astropy tables can have metadata, units etc. so lets convert to an astropy table
 
 		# add astropy units to columns (this will be stored in metadata and can be read back out into an astropy QTable)
@@ -140,7 +163,7 @@ class spectrum_grid:
 						  (self.Table[FEH_COLUMN] == FeH) &
 						  (self.Table[LOGG_COLUMN] == log_g)]
 		
-		subset : spectrum_grid = spectrum_grid(subset_table)
+		subset : new_spectrum_grid = new_spectrum_grid(subset_table)
 		
 		# remove the indices that were nan in the spectrum
 		# must be in the same order as we did for the spectrum_to_decompose
