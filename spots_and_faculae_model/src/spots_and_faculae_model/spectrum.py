@@ -31,13 +31,19 @@ class spectrum:
 			an array of astropy quantities (with some units that are convertible to Janskys by u.spectral_density equivalencies; e.g. Janskys themself or [erg / (s * cm**2 * cm)])
 		"""
 
+		wavelengths = np.atleast_1d(wavelengths)
+		fluxes = np.atleast_1d(fluxes)
+		
 		if len(wavelengths) != len(fluxes):
 			raise ValueError("wavelengths and fluxes must have the same length")
 		
 		fluxes_janskys = fluxes.to(u.Jy, equivalencies=u.spectral_density(wavelengths))
 
-		self.Wavelengths : np.array = wavelengths
-		self.Fluxes : np.array = fluxes_janskys
+		# make sure the wavelengths are in ascending order, so that normalising_janskys doesn't break
+		indices = np.argsort(wavelengths) # get the indices that would sort the wavelengths np.array
+
+		self.Wavelengths : np.array = wavelengths[indices]
+		self.Fluxes : np.array = fluxes_janskys[indices]
 		self.Name : str = name
 
 		self.normalise_flux()
@@ -54,6 +60,19 @@ class spectrum:
 			raise ValueError("wavelengths and fluxes must have the same length. (Length is not well defined)")
 		
 		return len(self.Fluxes)
+	
+	def __iter__(self):
+		"""
+		pandas complains very hard when trying to print dataframes containing spectrum objects if we dont define our own iterator
+		"""
+		return iter(self.Fluxes)
+	
+	def __repr__(self):
+		unit = getattr(self.Fluxes, "unit", None)
+		return f"<spectrum name={self.Name} len={len(self)} unit={unit}>"
+
+	def __str__(self):
+		return self.__repr__()
 	
 	def plot(self):
 		plt.clf()

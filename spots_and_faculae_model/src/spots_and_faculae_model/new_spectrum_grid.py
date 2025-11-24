@@ -34,33 +34,6 @@ class new_spectrum_grid:
 		self.Table = table
 		self.FancyTable = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, SPECTRUM_COLUMN])
 		self.update_fancy_table()
-			
-	def update_fancy_table(self):
-		"""
-		updates the fancy table to align to the information in self.Table
-		WARNING: this deletes any alterations made to the spectra (although changing spectra is not preferred anyway)
-		"""
-
-		self.FancyTable = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, SPECTRUM_COLUMN])
-		
-		for T_eff, FeH, log_g in tqdm(product(self.T_effs, self.FeHs, self.log_gs), total= len(self.T_effs) * len(self.FeHs) * len(self.log_gs), desc="Creating fancier spectral grid..."):
-			subset = self.Table[(self.Table[TEFF_COLUMN] == T_eff) &
-								(self.Table[FEH_COLUMN] == FeH) &
-								(self.Table[LOGG_COLUMN] == log_g)]
-			
-			spectrum_name : str = f"simulated phoenix spectrum for {self.Name}" if self.Name != None else f"simulated phoenix spectrum"
-			spec : spectrum = spectrum(wavelengths = subset[WAVELENGTH_COLUMN], fluxes = subset[FLUX_COLUMN], name=spectrum_name)
-			
-			new_row = pd.DataFrame({
-				TEFF_COLUMN : [T_eff],
-				FEH_COLUMN : [FeH],
-				LOGG_COLUMN : [log_g],
-				SPECTRUM_COLUMN : [spec]
-			})
-
-			self.FancyTable = pd.concat([self.FancyTable, new_row])
-			
-		# pandas tables can't save their metadata into a HDF5 directly (can use HDFStore or smthn) - but astropy tables can have metadata, units etc. so lets convert to an astropy table
 
 		# add astropy units to columns (this will be stored in metadata and can be read back out into an astropy QTable)
 		# self.Table[TEFF_COLUMN].unit = u.Kelvin
@@ -77,6 +50,33 @@ class new_spectrum_grid:
 
 		# self.Table[FLUX_COLUMN].unit = u.dimensionless_unscaled
 		self.Table[FLUX_COLUMN].desc = "in erg s^-1 cm^-2 cm^-1"
+			
+	def update_fancy_table(self):
+		"""
+		updates the fancy table to align to the information in self.Table
+		WARNING: this deletes any alterations made to the spectra (although changing spectra is not preferred anyway)
+		"""
+
+		self.FancyTable = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, SPECTRUM_COLUMN])
+
+		for T_eff, FeH, log_g in tqdm(product(self.T_effs, self.FeHs, self.log_gs), total= len(self.T_effs) * len(self.FeHs) * len(self.log_gs), desc="Creating fancier spectral grid..."):
+			subset = self.Table[(self.Table[TEFF_COLUMN] == T_eff) &
+								(self.Table[FEH_COLUMN] == FeH) &
+								(self.Table[LOGG_COLUMN] == log_g)]
+			
+			spectrum_name : str = f"simulated phoenix spectrum for {self.Name}" if self.Name != None else f"simulated phoenix spectrum"
+			spec : spectrum = spectrum(wavelengths = subset[WAVELENGTH_COLUMN], fluxes = subset[FLUX_COLUMN], name=spectrum_name)
+			
+			new_row = pd.DataFrame({
+				TEFF_COLUMN : [T_eff],
+				FEH_COLUMN : [FeH],
+				LOGG_COLUMN : [log_g],
+				SPECTRUM_COLUMN : [spec]
+			})
+
+			self.FancyTable = pd.concat([self.FancyTable, new_row], ignore_index=True)
+		
+		self.FancyTable[SPECTRUM_COLUMN] = self.FancyTable[SPECTRUM_COLUMN].astype("object")
 
 	@classmethod
 	def from_hdf5_file(cls, absolute_hdf5_path : Path):
@@ -148,46 +148,20 @@ class new_spectrum_grid:
 		self.Table = regularised_wavelength_df
 		self.update_fancy_table()
 	
-
-
-	# spectrum_to_decompose is temporary here; it can probably be changed to be self.wavelengths but that isn't tested
-	def process_single_spectral_component(self, T_eff : Quantity[u.K], FeH : float, log_g : float, mask : np.array, spectrum_to_decompose : spectrum) -> np.array:
-		"""
-		returns a np array of astropy quantities with units of Janskys
-
-		Attributes
-		----------
-		mask : np.array
-			something of length of spectra stored in the spectral grid. contains False where infinities were found in the observed spectra to fit
-
-
-		"""
-		subset_table = self.Table[(self.Table[TEFF_COLUMN] == T_eff) &
-						  (self.Table[FEH_COLUMN] == FeH) &
-						  (self.Table[LOGG_COLUMN] == log_g)]
+	def process_single_spectral_component(self, T_eff : Quantity[u.K], FeH : float, log_g : float, mask : np.array) -> np.array:
+		subset_table = self.FancyTable[([i.value for i in self.FancyTable[TEFF_COLUMN]] == T_eff.value) & # pandas loves complaining today; what a bodge
+									   (self.FancyTable[FEH_COLUMN] == FeH) &
+									   (self.FancyTable[LOGG_COLUMN] == log_g)]
 		
-		subset : new_spectrum_grid = new_spectrum_grid(subset_table)
+		if len(subset_table[SPECTRUM_COLUMN]) != 1:
+			raise LookupError(f"new_spectrum_grid is degenerate or underdefined; it contains {len(subset_table[SPECTRUM_COLUMN])} (number of) spectra for the parameters T_eff = {T_eff}, FeH = {FeH}, log_g = {log_g}")
 		
-		# remove the indices that were nan in the spectrum
-		# must be in the same order as we did for the spectrum_to_decompose
-		subset.Table = subset.Table[mask] # should make the table's spectra have the same x axis (wavelengths) as the spectrum_to_decompose 
-		subset_spectrum = spectrum.from_phoenix_units(wavelengths=spectrum_to_decompose.Wavelengths, phoenix_fluxes=subset.Table[FLUX_COLUMN])
-		subset_spectrum.normalise_Janskys()
-		# subset_spectrum = subset_spectrum[(1.25 * u.um <= subset_spectrum.Wavelengths) & (subset_spectrum.Wavelengths <= 2 * u.um)]
+		spec : spectrum = subset_table[SPECTRUM_COLUMN].item()
 
-		return subset_spectrum.Fluxes
-	
-	def new_process_single_spectral_component(self, T_eff : Quantity[u.K], FeH : float, log_g : float, mask : np.array) -> np.array:
-		subset_table = self.FancyTable[(self.FancyTable[TEFF_COLUMN] == T_eff) &
-					(self.FancyTable[FEH_COLUMN] == FeH) &
-					(self.FancyTable[LOGG_COLUMN] == log_g)]
-		
-		if len(subset_table[SPECTRUM_COLUMN] != 0):
-			raise LookupError(f"new_spectrum_grid is degenerate; it contains multiple spectra for the parameters T_eff = {T_eff}, FeH = {FeH}, log_g = {log_g}")
-		
-		spec : spectrum = subset_table[SPECTRUM_COLUMN][0]
 		return spec.Fluxes[mask]
 	
+
+
 	# just to expose stuff
 	# these give the list of unique T_effs : if you wanna do slicing etc you'll need the whole self.Table object
 	# this might be slow / a bottleneck

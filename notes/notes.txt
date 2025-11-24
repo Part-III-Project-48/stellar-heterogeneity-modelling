@@ -44,3 +44,7 @@ first 3 columns are the paramters
 but the 4th column is a reference to a spectrum object
 
 way better than this astropy stuff i think
+
+reorganise codebase - e.g. make all notes in one place, simplify github issues; make the poetry package top level; refactor spectral grid to contain objects
+
+plot fitting in different sections

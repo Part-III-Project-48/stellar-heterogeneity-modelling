@@ -23,10 +23,9 @@ def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str
 		data = hdul[HDU_INDEX].data
 		hdr = hdul[HDU_INDEX].header
 		
-		# print("[SPECTRUM COMPONENT ANALYSER] : external spectrum found & loaded in")
 		# these column name strings are unique to JWST 1D 
 		spec : spectrum = spectrum(wavelengths = data["WAVELENGTH"][INTEGRATION_INDEX] * u.um,
-				  fluxes = data["FLUX"][INTEGRATION_INDEX] * u.Jy, name=name)
+				  fluxes = data["FLUX"][INTEGRATION_INDEX] * u.MJy, name=name)
 
 		if verbose:
 			hdul.info()

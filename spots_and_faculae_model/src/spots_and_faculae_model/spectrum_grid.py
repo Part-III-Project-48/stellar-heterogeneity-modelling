@@ -145,8 +145,7 @@ class spectrum_grid:
 		# remove the indices that were nan in the spectrum
 		# must be in the same order as we did for the spectrum_to_decompose
 		subset.Table = subset.Table[mask] # should make the table's spectra have the same x axis (wavelengths) as the spectrum_to_decompose 
-		subset_spectrum = spectrum.from_phoenix_units(wavelengths=spectrum_to_decompose.Wavelengths, phoenix_fluxes=subset.Table[FLUX_COLUMN])
-		subset_spectrum.normalise_Janskys()
+		subset_spectrum = spectrum(wavelengths=spectrum_to_decompose.Wavelengths, phoenix_fluxes=subset.Table[FLUX_COLUMN])
 		# subset_spectrum = subset_spectrum[(1.25 * u.um <= subset_spectrum.Wavelengths) & (subset_spectrum.Wavelengths <= 2 * u.um)]
 
 		return subset_spectrum.Fluxes
