@@ -48,3 +48,4 @@ way better than this astropy stuff i think
 reorganise codebase - e.g. make all notes in one place, simplify github issues; make the poetry package top level; refactor spectral grid to contain objects
 
 plot fitting in different sections
+parallelise the new code plz lmao

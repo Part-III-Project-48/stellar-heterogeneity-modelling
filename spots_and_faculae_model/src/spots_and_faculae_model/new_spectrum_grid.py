@@ -161,6 +161,13 @@ class new_spectrum_grid:
 		return spec.Fluxes[mask]
 	
 
+	def __repr__(self):
+		# Called by print() and interactive console
+		return repr(self.FancyTable)
+
+	# Optional: __str__ can control just print() behavior
+	def __str__(self):
+		return str(self.FancyTable)
 
 	# just to expose stuff
 	# these give the list of unique T_effs : if you wanna do slicing etc you'll need the whole self.Table object
