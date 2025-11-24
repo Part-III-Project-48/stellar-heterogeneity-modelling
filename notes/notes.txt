@@ -49,3 +49,5 @@ reorganise codebase - e.g. make all notes in one place, simplify github issues; 
 
 plot fitting in different sections
 parallelise the new code plz lmao
+
+creatint the hdf5 file is massively untested with the new spectrum_grid
