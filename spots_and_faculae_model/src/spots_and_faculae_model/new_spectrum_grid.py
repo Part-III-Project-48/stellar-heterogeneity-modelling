@@ -6,7 +6,6 @@ import pandas as pd
 from tqdm import tqdm
 from scipy.interpolate import interp1d
 import astropy
-import specutils
 from astropy.units import Quantity
 import astropy.units as u
 
@@ -31,7 +30,17 @@ class new_spectrum_grid:
 
 	def __init__(self, table : QTable = None, name : str = None):
 		"""default initialiser from a qtable object"""
+		self.Name = name
 		self.Table = table
+		self.FancyTable = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, SPECTRUM_COLUMN])
+		self.update_fancy_table()
+			
+	def update_fancy_table(self):
+		"""
+		updates the fancy table to align to the information in self.Table
+		WARNING: this deletes any alterations made to the spectra (although changing spectra is not preferred anyway)
+		"""
+
 		self.FancyTable = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, SPECTRUM_COLUMN])
 		
 		for T_eff, FeH, log_g in tqdm(product(self.T_effs, self.FeHs, self.log_gs), total= len(self.T_effs) * len(self.FeHs) * len(self.log_gs), desc="Creating fancier spectral grid..."):
@@ -39,7 +48,7 @@ class new_spectrum_grid:
 								(self.Table[FEH_COLUMN] == FeH) &
 								(self.Table[LOGG_COLUMN] == log_g)]
 			
-			spectrum_name : str = f"simulated phoenix spectrum for {name}" if name != None else f"simulated phoenix spectrum"
+			spectrum_name : str = f"simulated phoenix spectrum for {self.Name}" if self.Name != None else f"simulated phoenix spectrum"
 			spec : spectrum = spectrum(wavelengths = subset[WAVELENGTH_COLUMN], fluxes = subset[FLUX_COLUMN], name=spectrum_name)
 			
 			new_row = pd.DataFrame({
@@ -49,11 +58,7 @@ class new_spectrum_grid:
 				SPECTRUM_COLUMN : [spec]
 			})
 
-			print(new_row[TEFF_COLUMN][0])
-
 			self.FancyTable = pd.concat([self.FancyTable, new_row])
-			
-
 			
 		# pandas tables can't save their metadata into a HDF5 directly (can use HDFStore or smthn) - but astropy tables can have metadata, units etc. so lets convert to an astropy table
 
@@ -71,7 +76,7 @@ class new_spectrum_grid:
 		# self.Table[WAVELENGTH_COLUMN].unit = u.Angstrom
 
 		# self.Table[FLUX_COLUMN].unit = u.dimensionless_unscaled
-		self.Table[FLUX_COLUMN].desc = "in erg s^-1 cm^-2 cm^-1]"
+		self.Table[FLUX_COLUMN].desc = "in erg s^-1 cm^-2 cm^-1"
 
 	@classmethod
 	def from_hdf5_file(cls, absolute_hdf5_path : Path):
@@ -91,13 +96,10 @@ class new_spectrum_grid:
 		names=(TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN))
 		return cls(table)
 
-	def save(self, absolute_path : Path = "default_path", name : str = "spectrum_grid", Overwrite : bool = False):
-		print("[PHOENIX GRID CREATOR] : writing dataframe to hdf5...")
-		self.Table.write(name, path = absolute_path, serialize_meta=True, overwrite=Overwrite)
-		print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
-
-	def convert_vacuum_to_air(self) -> None:
-		self.Table[WAVELENGTH_COLUMN] = specutils.utils.wcs_utils.vac_to_air(self.Table[WAVELENGTH_COLUMN])
+	# def save(self, absolute_path : Path = "default_path", name : str = "spectrum_grid", Overwrite : bool = False):
+	# 	print("[PHOENIX GRID CREATOR] : writing dataframe to hdf5...")
+	# 	self.Table.write(name, path = absolute_path, serialize_meta=True, overwrite=Overwrite)
+	# 	print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
 
 	def regularise_temperatures(self, new_T_effs : np.array) -> None:
 		"""
@@ -144,6 +146,7 @@ class new_spectrum_grid:
 				regularised_wavelength_df = temp_df
 		
 		self.Table = regularised_wavelength_df
+		self.update_fancy_table()
 	
 
 
@@ -173,7 +176,18 @@ class new_spectrum_grid:
 		# subset_spectrum = subset_spectrum[(1.25 * u.um <= subset_spectrum.Wavelengths) & (subset_spectrum.Wavelengths <= 2 * u.um)]
 
 		return subset_spectrum.Fluxes
-
+	
+	def new_process_single_spectral_component(self, T_eff : Quantity[u.K], FeH : float, log_g : float, mask : np.array) -> np.array:
+		subset_table = self.FancyTable[(self.FancyTable[TEFF_COLUMN] == T_eff) &
+					(self.FancyTable[FEH_COLUMN] == FeH) &
+					(self.FancyTable[LOGG_COLUMN] == log_g)]
+		
+		if len(subset_table[SPECTRUM_COLUMN] != 0):
+			raise LookupError(f"new_spectrum_grid is degenerate; it contains multiple spectra for the parameters T_eff = {T_eff}, FeH = {FeH}, log_g = {log_g}")
+		
+		spec : spectrum = subset_table[SPECTRUM_COLUMN][0]
+		return spec.Fluxes[mask]
+	
 	# just to expose stuff
 	# these give the list of unique T_effs : if you wanna do slicing etc you'll need the whole self.Table object
 	# this might be slow / a bottleneck
@@ -188,11 +202,3 @@ class new_spectrum_grid:
 	@property
 	def log_gs(self):
 		return astropy.table.unique(self.Table, keys=[LOGG_COLUMN])[LOGG_COLUMN]
-
-	@property
-	def wavelengths(self):
-		return astropy.table.unique(self.Table, keys=[WAVELENGTH_COLUMN])[WAVELENGTH_COLUMN]
-
-	@property
-	def fluxes(self):
-		return astropy.table.unique(self.Table, keys=[FLUX_COLUMN])[FLUX_COLUMN]
