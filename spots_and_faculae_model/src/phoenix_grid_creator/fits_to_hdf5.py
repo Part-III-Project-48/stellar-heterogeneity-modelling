@@ -17,7 +17,6 @@ from astropy.table import Table
 from itertools import product
 from pathlib import Path
 import matplotlib.pyplot as plt
-import specutils
 from scipy.interpolate import interp1d
 import datetime
 from astropy.visualization import quantity_support
@@ -31,6 +30,7 @@ from typing import Sequence
 from phoenix_grid_creator.PHOENIX_filename_conventions import *
 from spots_and_faculae_model.spectrum_grid import spectrum_grid
 from spots_and_faculae_model.phoenix_spectrum import phoenix_spectrum
+from spots_and_faculae_model.simpler_spectral_grid import simpler_spectral_grid
 
 SAVE_TO_HDF : bool = False
 SPECTRAL_GRID_FILENAME : str = 'spectral_grid.hdf5'
@@ -47,7 +47,6 @@ log_gs = [0]
 
 PHOENIX_FLUX_UNITS = u.erg / (u.s * u.cm**2 * u.cm)
 
-# seems like the only data I can find is LTE data (?)
 lte : bool = True
 # # # flags # # #
 
@@ -58,11 +57,11 @@ MAX_WAVELENGTH_ANGSTROMS : float = 5.5 * 10**(-6) * 10**(10) # phoenix only goes
 WAVELENGTH_NUMBER_OF_POINTS : int = 5
 regularised_wavelengths : np.array = np.linspace(MIN_WAVELENGTH_ANGSTROMS, MAX_WAVELENGTH_ANGSTROMS, WAVELENGTH_NUMBER_OF_POINTS) * u.Angstrom
 
-# ipynb files complain about this otherwise
-if __name__ == "__main__":
-	# get the wavelengths from a jwst file and use that to convolve against
-	path = Path("spots_and_faculae_model/assets/MAST_2025-10-26T08_10_09.071Z/MAST_2025-10-26T08_10_09.071Z/JWST/jw02722003001_04101_00001-seg001_nis_x1dints.fits")
-	# regularised_wavelengths = read_JWST_fits(path).Wavelengths
+# # ipynb files complain about this otherwise
+# if __name__ == "__main__":
+# 	# get the wavelengths from a jwst file and use that to convolve against
+# 	path = Path("spots_and_faculae_model/assets/MAST_2025-10-26T08_10_09.071Z/MAST_2025-10-26T08_10_09.071Z/JWST/jw02722003001_04101_00001-seg001_nis_x1dints.fits")
+# 	# regularised_wavelengths = read_JWST_fits(path).Wavelengths
 
 # temperature interpolation
 REGULARISE_TEMPERATURE_GRID : bool = False
@@ -79,172 +78,12 @@ DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
 # # # # # #
 
 # # # # # helper functions # # # # # 
-	
-def get_wavelength_grid() -> Sequence[Quantity]:
-	"""
-	returns 1D array consisting of astropy Quantities of dimension length
-	"""
-	# read in the wavelength (1D) grid so we can save this into our mega-grid correctly
-
-	script_dir = Path(__file__).resolve().parent
-	WAVELENGTH_GRID_RELATIVE_PATH = Path("../../assets/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits")
-	wavelength_grid_absolute_path = (script_dir / WAVELENGTH_GRID_RELATIVE_PATH).resolve()
-
-	if not wavelength_grid_absolute_path.exists():
-		raise FileNotFoundError(f"wavelength grid file not found at : {wavelength_grid_absolute_path}.")
-
-	with fits.open(wavelength_grid_absolute_path) as hdul:
-		# there is only 1 HDU in this wavelength grid file
-		WAVELENGTH_GRID_HDU_INDEX = 0
-		wavelengths = hdul[WAVELENGTH_GRID_HDU_INDEX].data
-		# the fits file is big endian; pandas requires little endian. this swaps between them
-		wavelengths = wavelengths.byteswap().view(wavelengths.dtype.newbyteorder())
-		wavelengths *= u.Angstrom
-		print("[PHOENIX GRID CREATOR] : wavelength grid found & loaded in")
-
-	return wavelengths
-
-def download_spectrum(T_eff, FeH, log_g, wavelengths : np.array) -> phoenix_spectrum:
-	"""
-	well use this function to parallelise getting the spectra
-	"""
-	try:
-		file = get_file_name(lte, T_eff, log_g, FeH, alphaM)
-		url = get_url(file)
-	except ValueError as e:
-		tqdm.write(f"[PHOENIX GRID CREATOR] : filename or urlname error: {e}. continuing onto next requested spectrum")
-		return
-	try:
-		response = requests.get(url)
-		response.raise_for_status()
-	except requests.exceptions.HTTPError as e:
-		tqdm.write(f"[PHOENIX GRID CREATOR] : HTTPError raised with the following parameters.\nlte: {lte}\nT_eff={T_eff}\nlog_g={log_g}\nFeH={FeH}\nalphaM={alphaM}")
-		tqdm.write(f"url = {url}")
-		tqdm.write("\n continuing with the next file...")
-		return
-	
-	# the index of the header data unit the data we want is in (looks to be 0 being the spectra, and 1 being the abundances, and those are the only 2 HDUs in the .fits files)
-	SPECTRA_HDU_INDEX = 0
-
-	with fits.open(BytesIO(response.content)) as hdul:
-		# hdul.info()
-		
-		fluxes = hdul[SPECTRA_HDU_INDEX].data
-
-		# for some reason, the fits file is big-endian; pandas required little-endian
-		fluxes = fluxes.byteswap().view(fluxes.dtype.newbyteorder())
-		fluxes *= PHOENIX_FLUX_UNITS
-		JWST_resolution = .001 * u.um
-
-		if REGULARISE_WAVELENGTH_GRID:
-			index_per_wavelength = len(wavelengths) / (np.max(wavelengths) - np.min(wavelengths))
-			index_per_wavelength = index_per_wavelength.to(u.um**-1)
-			convolution_range = int((index_per_wavelength * JWST_resolution)) # in number of adjacent points to consider
-			fluxes = sp.ndimage.gaussian_filter(fluxes, convolution_range) * fluxes.unit # gaussian_filter seems to remove units
-			spec = phoenix_spectrum(
-				wavelengths=regularised_wavelengths,
-				fluxes = np.interp(regularised_wavelengths, wavelengths, fluxes),
-				t_eff=T_eff,
-				feh=FeH,
-				log_g=log_g)
-		else:
-			spec = phoenix_spectrum(
-					wavelengths=wavelengths,
-					fluxes=fluxes,
-					t_eff=T_eff,
-					feh=FeH,
-					log_g=log_g)
-
-		return spec
 
 if __name__ == "__main__":
 
-	phoenix_wavelengths = get_wavelength_grid()
+	spec_grid : simpler_spectral_grid = simpler_spectral_grid.from_internet(T_effs, FeHs, log_gs, regularised_wavelengths=regularised_wavelengths)
 
-	# now use defined ranges for the data we want, process it and save this to a hdf5 file
-
-	# pre - allocate 4d flux array
-	fluxes = np.zeros((len(T_effs), len(FeHs), len(log_gs), len(regularised_wavelengths)))
-
-	if CONVERT_WAVELENGTHS_TO_AIR:
-		phoenix_wavelengths = specutils.utils.wcs_utils.vac_to_air(phoenix_wavelengths)
-	
-	def fetch_spectra_and_indices(i, j, k, T_eff, FeH, log_g):
-		spec : phoenix_spectrum = download_spectrum(T_eff, FeH, log_g, phoenix_wavelengths)
-		return i, j, k, spec
-	
-	tasks = [
-		(i, j, k, t, f, g)
-		for i, t in enumerate(T_effs)
-		for j, f in enumerate(FeHs)
-		for k, g in enumerate(log_gs)
-	]
-
-	results = Parallel(n_jobs=-1, prefer="threads")(
-		delayed(fetch_spectra_and_indices)(*task) for task in tqdm(tasks)
-	)
-
-	spec : phoenix_spectrum
-	for i, j, k, spec in results:
-		# i think this removes units from fluxes silently - as this is some 4D array. maybe we can readd them somehow; doesnt rly matter for now though
-		fluxes[i, j, k, :] = spec.Fluxes
-	
-	# assume wavelengths are the same for all spectra
-	# dodgy
-	absolute_path : Path = Path("test2.hdf5")
-	overwrite = False
-
-	# SAVING #
-
-	overwrite = True
-
-	if absolute_path.exists() and not overwrite:
-		raise FileExistsError(f"specified path already exists; and overwrite is set to false. Change the file name or turn on overwrite. (File path: {absolute_path})")
-	
-	with h5py.File(absolute_path, "w") as f:
-		f.attrs["creator"] = "Ben Green"
-		f.attrs["description"] = "Collection of synthetic spectra from PHOENIX dataset"
-		f.attrs["version"] = "0.1"
-		f.attrs["date"] = str(datetime.datetime.now())
-		f.attrs["notes"] = "All spectra share the same wavelength grid."
-
-		# add some metadata to the QTable e.g. (wavelength medium = air, source, date)
-		f.attrs["wavelength medium"] = "air" if CONVERT_WAVELENGTHS_TO_AIR else "vacuum"
-		f.attrs["source"] = "https://phoenix.astro.physik.uni-goettingen.de/data/"
-		f.attrs["includes interpolated wavelengths?"] = REGULARISE_WAVELENGTH_GRID
-		f.attrs["includes interpolated temperatures?"] = REGULARISE_TEMPERATURE_GRID
-
-		g = f.create_group("main_grid")
-
-		# we have to remove units from our np arrays and write them to metadata to be retrieved later
-
-		UNIT_METADATA_NAME : str = "units"
-		WAVELENGTH_DATASET_NAME : str = "wavelengths"
-		TEFF_DATASET_NAME : str = "Teff"
-		FEH_DATASET_NAME : str = "FeH"
-		LOGG_DATASET_NAME : str = "log_g"
-		FLUX_DATASET_NAME : str = "fluxes"
-
-		wavelength_unit = regularised_wavelengths.unit
-		T_eff_unit = T_effs.unit
-		flux_unit = PHOENIX_FLUX_UNITS
-
-		wavelength_dataset = g.create_dataset(WAVELENGTH_DATASET_NAME, data=np.array(regularised_wavelengths))
-		wavelength_dataset.attrs[UNIT_METADATA_NAME] = str(wavelength_unit)
-
-		T_eff_dataset = g.create_dataset(TEFF_DATASET_NAME, data=np.array([i.value for i in T_effs]))
-		T_eff_dataset.attrs[UNIT_METADATA_NAME] = str(T_eff_unit)
-
-		FeH_dataset = g.create_dataset(FEH_DATASET_NAME, data=FeHs)
-		FeH_dataset.attrs[UNIT_METADATA_NAME] = str(u.dimensionless_unscaled)
-
-		log_g_dataset = g.create_dataset(LOGG_DATASET_NAME, data=log_gs)
-		log_g_dataset.attrs[UNIT_METADATA_NAME] = str(u.dimensionless_unscaled)
-
-		flux_dataset = g.create_dataset(FLUX_DATASET_NAME, data=np.array(fluxes))
-		flux_dataset.attrs[UNIT_METADATA_NAME] = str(flux_unit)
-
-	print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
+	spec_grid.save(absolute_path=Path("test2.hdf5"), overwrite=True)
 	
 	# if REGULARISE_TEMPERATURE_GRID:
 	# 	grid.regularise_temperatures(regularised_temperatures)
