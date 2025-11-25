@@ -24,6 +24,7 @@ from astropy.visualization import quantity_support
 from astropy.table import QTable
 import scipy as sp
 from astropy.table import Table, vstack
+import h5py
 
 # internal imports
 from phoenix_grid_creator.PHOENIX_filename_conventions import *
@@ -42,6 +43,8 @@ alphaM = 0
 T_effs = [2500 * u.K]
 FeHs = [-4]
 log_gs = [0]
+
+PHOENIX_FLUX_UNITS = u.erg / (u.s * u.cm**2 * u.cm)
 
 # seems like the only data I can find is LTE data (?)
 lte : bool = True
@@ -129,7 +132,7 @@ def download_spectrum(T_eff, FeH, log_g, wavelengths : np.array) -> phoenix_spec
 
 		# for some reason, the fits file is big-endian; pandas required little-endian
 		fluxes = fluxes.byteswap().view(fluxes.dtype.newbyteorder())
-		fluxes *= u.erg / (u.s * u.cm**2 * u.cm)
+		fluxes *= PHOENIX_FLUX_UNITS
 		JWST_resolution = .001 * u.um
 
 		if REGULARISE_WAVELENGTH_GRID:
@@ -137,58 +140,96 @@ def download_spectrum(T_eff, FeH, log_g, wavelengths : np.array) -> phoenix_spec
 			index_per_wavelength = index_per_wavelength.to(u.um**-1)
 			convolution_range = int((index_per_wavelength * JWST_resolution)) # in number of adjacent points to consider
 			fluxes = sp.ndimage.gaussian_filter(fluxes, convolution_range) * fluxes.unit # gaussian_filter seems to remove units
-			t = phoenix_spectrum(
+			spec = phoenix_spectrum(
 				wavelengths=regularised_wavelengths,
 				fluxes = np.interp(regularised_wavelengths, wavelengths, fluxes),
 				t_eff=T_eff,
 				feh=FeH,
 				log_g=log_g)
 		else:
-			t = phoenix_spectrum(
+			spec = phoenix_spectrum(
 					wavelengths=wavelengths,
 					fluxes=fluxes,
 					t_eff=T_eff,
 					feh=FeH,
 					log_g=log_g)
-		# this might be quicker to stream data to disc rather than creating a massive df
-		# temp_df.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True, append=True)
-		# continue
 
-		return t
+		return spec
+
+from typing import Sequence
 
 if __name__ == "__main__":
 
-	wavelengths = get_wavelength_grid()
+	phoenix_wavelengths = get_wavelength_grid()
 
-	# now use defined ranges for the data we want, process it and save this to a hdf5 fil
+	# now use defined ranges for the data we want, process it and save this to a hdf5 file
 
-	grids : list[phoenix_spectrum] = Parallel(n_jobs=-1, prefer="threads")(
-		delayed(download_spectrum)(T_eff, FeH, log_g, wavelengths) for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=len(T_effs) * len(FeHs) * len(log_gs), desc="Downloading .fits spectra files")
-		)
+	# pre - allocate 4d flux array
+	fluxes = np.zeros((len(T_effs), len(FeHs), len(log_gs), len(regularised_wavelengths)))
+
+	for (i, T_eff), (j, FeH), (k, log_g) in tqdm(
+		product(enumerate(T_effs), enumerate(FeHs), enumerate(log_gs)),
+		total=len(T_effs) * len(FeHs) * len(log_gs), desc="Downloading .fits spectra files"):
+		spec : phoenix_spectrum = download_spectrum(T_eff, FeH, log_g, phoenix_wavelengths)
+		fluxes[i, j, k, :] = spec.Fluxes
 	
-	grid = spectrum_grid(vstack([grid.Table for grid in grids]))
-	
-	if REGULARISE_TEMPERATURE_GRID:
-		grid.regularise_temperatures(regularised_temperatures)
+	# assume wavelengths are the same for all spectra
+	# dodgy
+	absolute_path : Path = Path("test2.hdf5")
+	overwrite = False
 
-	if CONVERT_WAVELENGTHS_TO_AIR:
-		grid.convert_vacuum_to_air()
-
-	# add some metadata to the QTable e.g. (wavelength medium = air, source, date)
-	grid.Table.meta = {"wavelength medium" : "air" if CONVERT_WAVELENGTHS_TO_AIR else "vacuum",
-				"source" : "https://phoenix.astro.physik.uni-goettingen.de/data/",
-				"date this hdf5 file was created" : datetime.datetime.now(),
-				"description" : "if it includes interpolated values, then a specified list of wavelengths and/or temperatures were given, and the simulated data was (linearly) interpolated onto those values (aka; information was removed and accuracy is not guaranteed)",
-				"includes interpolated wavelengths?" : REGULARISE_WAVELENGTH_GRID,
-				"regularised wavelengths (Angstroms):" : f"np.linspace({MIN_WAVELENGTH_ANGSTROMS}, {MAX_WAVELENGTH_ANGSTROMS}, {WAVELENGTH_NUMBER_OF_POINTS})" if REGULARISE_WAVELENGTH_GRID else "not applicable",
-				"includes interpolated temperatures?" : REGULARISE_TEMPERATURE_GRID,
-				"regularised temperatures (Kelvin)" : f"np.arange({MIN_TEMPERATURE_KELVIN}, {MAX_TEMPERATURE_KELVIN + TEMPERATURE_RESOLUTION_KELVIN}, {TEMPERATURE_RESOLUTION_KELVIN})" if REGULARISE_TEMPERATURE_GRID else "not applicable",
-				"Teff (original data)" : T_effs,
-				"FeH (original data)" : FeHs,
-				"log_gs (original data)" : log_gs}
+	# if absolute_path.exists() and not overwrite:
+	# 	raise FileExistsError(f"specified path already exists; and overwrite is set to false. Change the file name or turn on overwrite. (File path: {absolute_path})")
 	
-	if SAVE_TO_HDF:
-		grid.new_save(absolute_path="data", name=SPECTRAL_GRID_FILENAME, overwrite=False)
+	with h5py.File(absolute_path, "w") as f:
+		f.attrs["creator"] = "Ben G"
+		f.attrs["description"] = "Collection of synthetic spectra from PHOENIX dataset"
+		f.attrs["version"] = "0.1"
+		f.attrs["date"] = "---"
+		f.attrs["notes"] = "All spectra share the same wavelength grid."
+
+		g = f.create_group("main_grid")
+
+		wavelength_dataset = g.create_dataset("wavelengths", data=np.array(regularised_wavelengths))
+		wavelength_dataset.attrs["unit"] = str(u.um)
+
+		T_eff_dataset = g.create_dataset("Teff", data=np.array([i.value for i in T_effs]))
+		T_eff_dataset.attrs["units"] = str(u.K)
+
+		FeH_dataset = g.create_dataset("FeH", data=FeHs)
+		FeH_dataset.attrs["units"] = str(u.dimensionless_unscaled)
+
+		log_g_dataset = g.create_dataset("log_g", data=log_gs)
+		log_g_dataset.attrs["units"] = str(u.dimensionless_unscaled)
+
+		flux_dataset = g.create_dataset("fluxes", data=np.array(fluxes))
+		flux_dataset.attrs["units"] = str(PHOENIX_FLUX_UNITS)
+
+	print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
+
+	# grid = spectrum_grid(vstack([grid.Table for grid in grids]))
+	
+	# if REGULARISE_TEMPERATURE_GRID:
+	# 	grid.regularise_temperatures(regularised_temperatures)
+
+	# if CONVERT_WAVELENGTHS_TO_AIR:
+	# 	grid.convert_vacuum_to_air()
+
+	# # add some metadata to the QTable e.g. (wavelength medium = air, source, date)
+	# grid.Table.meta = {"wavelength medium" : "air" if CONVERT_WAVELENGTHS_TO_AIR else "vacuum",
+	# 			"source" : "https://phoenix.astro.physik.uni-goettingen.de/data/",
+	# 			"date this hdf5 file was created" : datetime.datetime.now(),
+	# 			"description" : "if it includes interpolated values, then a specified list of wavelengths and/or temperatures were given, and the simulated data was (linearly) interpolated onto those values (aka; information was removed and accuracy is not guaranteed)",
+	# 			"includes interpolated wavelengths?" : REGULARISE_WAVELENGTH_GRID,
+	# 			"regularised wavelengths (Angstroms):" : f"np.linspace({MIN_WAVELENGTH_ANGSTROMS}, {MAX_WAVELENGTH_ANGSTROMS}, {WAVELENGTH_NUMBER_OF_POINTS})" if REGULARISE_WAVELENGTH_GRID else "not applicable",
+	# 			"includes interpolated temperatures?" : REGULARISE_TEMPERATURE_GRID,
+	# 			"regularised temperatures (Kelvin)" : f"np.arange({MIN_TEMPERATURE_KELVIN}, {MAX_TEMPERATURE_KELVIN + TEMPERATURE_RESOLUTION_KELVIN}, {TEMPERATURE_RESOLUTION_KELVIN})" if REGULARISE_TEMPERATURE_GRID else "not applicable",
+	# 			"Teff (original data)" : T_effs,
+	# 			"FeH (original data)" : FeHs,
+	# 			"log_gs (original data)" : log_gs}
+	
+	# if SAVE_TO_HDF:
+	# 	grid.new_save(absolute_path="data", name=SPECTRAL_GRID_FILENAME, overwrite=False)
 
 
 
