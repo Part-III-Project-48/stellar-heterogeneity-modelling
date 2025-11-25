@@ -190,8 +190,14 @@ if __name__ == "__main__":
 		f.attrs["creator"] = "Ben G"
 		f.attrs["description"] = "Collection of synthetic spectra from PHOENIX dataset"
 		f.attrs["version"] = "0.1"
-		f.attrs["date"] = "---"
+		f.attrs["date"] = datetime.datetime.now()
 		f.attrs["notes"] = "All spectra share the same wavelength grid."
+
+		# add some metadata to the QTable e.g. (wavelength medium = air, source, date)
+		f.attrs["wavelength medium"] = "air" if CONVERT_WAVELENGTHS_TO_AIR else "vacuum"
+		f.attrs["source"] = "https://phoenix.astro.physik.uni-goettingen.de/data/"
+		f.attrs["includes interpolated wavelengths?"] = REGULARISE_WAVELENGTH_GRID
+		f.attrs["includes interpolated temperatures?"] = REGULARISE_TEMPERATURE_GRID
 
 		g = f.create_group("main_grid")
 
@@ -232,19 +238,6 @@ if __name__ == "__main__":
 
 	# if CONVERT_WAVELENGTHS_TO_AIR:
 	# 	grid.convert_vacuum_to_air()
-
-	# # add some metadata to the QTable e.g. (wavelength medium = air, source, date)
-	# grid.Table.meta = {"wavelength medium" : "air" if CONVERT_WAVELENGTHS_TO_AIR else "vacuum",
-	# 			"source" : "https://phoenix.astro.physik.uni-goettingen.de/data/",
-	# 			"date this hdf5 file was created" : datetime.datetime.now(),
-	# 			"description" : "if it includes interpolated values, then a specified list of wavelengths and/or temperatures were given, and the simulated data was (linearly) interpolated onto those values (aka; information was removed and accuracy is not guaranteed)",
-	# 			"includes interpolated wavelengths?" : REGULARISE_WAVELENGTH_GRID,
-	# 			"regularised wavelengths (Angstroms):" : f"np.linspace({MIN_WAVELENGTH_ANGSTROMS}, {MAX_WAVELENGTH_ANGSTROMS}, {WAVELENGTH_NUMBER_OF_POINTS})" if REGULARISE_WAVELENGTH_GRID else "not applicable",
-	# 			"includes interpolated temperatures?" : REGULARISE_TEMPERATURE_GRID,
-	# 			"regularised temperatures (Kelvin)" : f"np.arange({MIN_TEMPERATURE_KELVIN}, {MAX_TEMPERATURE_KELVIN + TEMPERATURE_RESOLUTION_KELVIN}, {TEMPERATURE_RESOLUTION_KELVIN})" if REGULARISE_TEMPERATURE_GRID else "not applicable",
-	# 			"Teff (original data)" : T_effs,
-	# 			"FeH (original data)" : FeHs,
-	# 			"log_gs (original data)" : log_gs}
 	
 	# if SAVE_TO_HDF:
 	# 	grid.new_save(absolute_path="data", name=SPECTRAL_GRID_FILENAME, overwrite=False)
