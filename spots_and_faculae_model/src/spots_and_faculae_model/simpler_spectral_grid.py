@@ -25,6 +25,18 @@ import h5py
 
 PHOENIX_FLUX_UNITS = u.erg / (u.s * u.cm**2 * u.cm)
 
+UNIT_METADATA_NAME : str = "units"
+WAVELENGTH_DATASET_NAME : str = "wavelengths"
+TEFF_DATASET_NAME : str = "Teff"
+FEH_DATASET_NAME : str = "FeH"
+LOGG_DATASET_NAME : str = "log_g"
+FLUX_DATASET_NAME : str = "fluxes"
+
+MAIN_GRID_NAME : str = "main_grid"
+
+USES_REGULARISED_WAVELENGTHS_METADATA_NAME : str = "includes interpolated wavelengths?"
+USES_REGULARISED_TEMPERATURES_METADATA_NAME : str = "includes interpolated temperatures?"
+
 def get_wavelength_grid() -> Sequence[Quantity]:
 	"""
 	returns 1D array consisting of astropy Quantities of dimension length
@@ -111,6 +123,7 @@ class simpler_spectral_grid():
 		don't use this init: use the other wrappers that download things or load in from a hdf5 file
 		(the structure of fluxes is non trivial)
 		"""
+
 		# 1D arrays
 		self.Wavelengths = wavelengths
 		self.T_effs = t_effs
@@ -178,19 +191,13 @@ class simpler_spectral_grid():
 			# add some metadata to the QTable e.g. (wavelength medium = vacuum, source, date)
 			f.attrs["wavelength medium"] = "vacuum"
 			f.attrs["source"] = "https://phoenix.astro.physik.uni-goettingen.de/data/"
-			f.attrs["includes interpolated wavelengths?"] = self.Uses_Regularised_Wavelengths
-			f.attrs["includes interpolated temperatures?"] = self.Uses_Regularised_Temperatures
 
-			g = f.create_group("main_grid")
+			f.attrs[USES_REGULARISED_WAVELENGTHS_METADATA_NAME] = self.Uses_Regularised_Wavelengths
+			f.attrs[USES_REGULARISED_TEMPERATURES_METADATA_NAME] = self.Uses_Regularised_Temperatures
+
+			g = f.create_group(MAIN_GRID_NAME)
 
 			# we have to remove units from our np arrays and write them to metadata to be retrieved later
-
-			UNIT_METADATA_NAME : str = "units"
-			WAVELENGTH_DATASET_NAME : str = "wavelengths"
-			TEFF_DATASET_NAME : str = "Teff"
-			FEH_DATASET_NAME : str = "FeH"
-			LOGG_DATASET_NAME : str = "log_g"
-			FLUX_DATASET_NAME : str = "fluxes"
 
 			wavelength_unit = self.Wavelengths.unit
 			T_eff_unit = self.T_effs.unit
@@ -212,3 +219,33 @@ class simpler_spectral_grid():
 			flux_dataset.attrs[UNIT_METADATA_NAME] = str(flux_unit)
 
 		print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
+
+	
+
+	@classmethod
+	def from_hdf5(cls, absolute_path : Path):
+		from astropy.units import Unit
+		
+		with h5py.File(absolute_path, "r") as f:
+			main_grid = f[MAIN_GRID_NAME]
+
+			wavelengths = main_grid[WAVELENGTH_DATASET_NAME]
+			wavelengths = np.array(wavelengths) * Unit(wavelengths.attrs[UNIT_METADATA_NAME], parse_strict='raise')
+
+			T_effs = main_grid[TEFF_DATASET_NAME]
+			T_effs = np.array(T_effs) * Unit(T_effs.attrs[UNIT_METADATA_NAME], parse_strict='raise')
+
+			FeHs = main_grid[FEH_DATASET_NAME]
+			FeHs = np.array(FeHs) * Unit(FeHs.attrs[UNIT_METADATA_NAME], parse_strict='raise')
+
+			log_gs = main_grid[LOGG_DATASET_NAME]
+			log_gs = np.array(log_gs) * Unit(log_gs.attrs[UNIT_METADATA_NAME], parse_strict='raise')
+
+			fluxes = main_grid[FLUX_DATASET_NAME]
+			fluxes = np.array(fluxes) * Unit(fluxes.attrs[UNIT_METADATA_NAME], parse_strict='raise')
+
+			uses_regularised_wavelengths = f.attrs[USES_REGULARISED_WAVELENGTHS_METADATA_NAME]
+
+			uses_regularised_temperatures = f.attrs[USES_REGULARISED_TEMPERATURES_METADATA_NAME]
+			
+		return cls(wavelengths, T_effs, FeHs, log_gs, fluxes, uses_regularised_wavelengths, uses_regularised_temperatures)

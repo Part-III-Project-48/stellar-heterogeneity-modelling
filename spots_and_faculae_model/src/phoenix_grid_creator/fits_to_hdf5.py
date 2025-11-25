@@ -81,12 +81,17 @@ DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
 
 if __name__ == "__main__":
 
-	spec_grid : simpler_spectral_grid = simpler_spectral_grid.from_internet(T_effs, FeHs, log_gs, regularised_wavelengths=regularised_wavelengths)
+	# spec_grid : simpler_spectral_grid = simpler_spectral_grid.from_internet(T_effs, FeHs, log_gs, regularised_wavelengths=regularised_wavelengths)
 
-	spec_grid.save(absolute_path=Path("test2.hdf5"), overwrite=True)
+	path : Path = "test2.hdf5"
+	# spec_grid.save(absolute_path=Path(path), overwrite=True)
 	
 	# if REGULARISE_TEMPERATURE_GRID:
 	# 	grid.regularise_temperatures(regularised_temperatures)
+	test_read : simpler_spectral_grid = simpler_spectral_grid.from_hdf5(path)
+
+	print(test_read)
+
 
 
 
