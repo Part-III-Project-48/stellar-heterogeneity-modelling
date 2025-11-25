@@ -40,7 +40,7 @@ FeHs = np.array([-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1])
 log_gs = np.arange(0, 6.1, 0.5)
 alphaM = 0
 
-T_effs = [2500 * u.K]
+T_effs = np.array([2500]) * u.K
 FeHs = [-4]
 log_gs = [0]
 
@@ -171,6 +171,8 @@ if __name__ == "__main__":
 		product(enumerate(T_effs), enumerate(FeHs), enumerate(log_gs)),
 		total=len(T_effs) * len(FeHs) * len(log_gs), desc="Downloading .fits spectra files"):
 		spec : phoenix_spectrum = download_spectrum(T_eff, FeH, log_g, phoenix_wavelengths)
+
+		# i think this removes units from fluxes silently - as this is some 4D array. maybe we can readd them somehow; doesnt rly matter for now though
 		fluxes[i, j, k, :] = spec.Fluxes
 	
 	# assume wavelengths are the same for all spectra
@@ -178,8 +180,11 @@ if __name__ == "__main__":
 	absolute_path : Path = Path("test2.hdf5")
 	overwrite = False
 
-	# if absolute_path.exists() and not overwrite:
-	# 	raise FileExistsError(f"specified path already exists; and overwrite is set to false. Change the file name or turn on overwrite. (File path: {absolute_path})")
+	# SAVING #
+
+	overwrite = True
+	if absolute_path.exists() and not overwrite:
+		raise FileExistsError(f"specified path already exists; and overwrite is set to false. Change the file name or turn on overwrite. (File path: {absolute_path})")
 	
 	with h5py.File(absolute_path, "w") as f:
 		f.attrs["creator"] = "Ben G"
@@ -190,20 +195,33 @@ if __name__ == "__main__":
 
 		g = f.create_group("main_grid")
 
-		wavelength_dataset = g.create_dataset("wavelengths", data=np.array(regularised_wavelengths))
-		wavelength_dataset.attrs["unit"] = str(u.um)
+		# we have to remove units from our np arrays and write them to metadata to be retrieved later
 
-		T_eff_dataset = g.create_dataset("Teff", data=np.array([i.value for i in T_effs]))
-		T_eff_dataset.attrs["units"] = str(u.K)
+		UNIT_METADATA_NAME : str = "units"
+		WAVELENGTH_DATASET_NAME : str = "wavelengths"
+		TEFF_DATASET_NAME : str = "Teff"
+		FEH_DATASET_NAME : str = "FeH"
+		LOGG_DATASET_NAME : str = "log_g"
+		FLUX_DATASET_NAME : str = "fluxes"
 
-		FeH_dataset = g.create_dataset("FeH", data=FeHs)
-		FeH_dataset.attrs["units"] = str(u.dimensionless_unscaled)
+		wavelength_unit = regularised_wavelengths.unit
+		T_eff_unit = T_effs.unit
+		flux_unit = PHOENIX_FLUX_UNITS
 
-		log_g_dataset = g.create_dataset("log_g", data=log_gs)
-		log_g_dataset.attrs["units"] = str(u.dimensionless_unscaled)
+		wavelength_dataset = g.create_dataset(WAVELENGTH_DATASET_NAME, data=np.array(regularised_wavelengths))
+		wavelength_dataset.attrs[UNIT_METADATA_NAME] = str(wavelength_unit)
 
-		flux_dataset = g.create_dataset("fluxes", data=np.array(fluxes))
-		flux_dataset.attrs["units"] = str(PHOENIX_FLUX_UNITS)
+		T_eff_dataset = g.create_dataset(TEFF_DATASET_NAME, data=np.array([i.value for i in T_effs]))
+		T_eff_dataset.attrs[UNIT_METADATA_NAME] = str(T_eff_unit)
+
+		FeH_dataset = g.create_dataset(FEH_DATASET_NAME, data=FeHs)
+		FeH_dataset.attrs[UNIT_METADATA_NAME] = str(u.dimensionless_unscaled)
+
+		log_g_dataset = g.create_dataset(LOGG_DATASET_NAME, data=log_gs)
+		log_g_dataset.attrs[UNIT_METADATA_NAME] = str(u.dimensionless_unscaled)
+
+		flux_dataset = g.create_dataset(FLUX_DATASET_NAME, data=np.array(fluxes))
+		flux_dataset.attrs[UNIT_METADATA_NAME] = str(flux_unit)
 
 	print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
 
