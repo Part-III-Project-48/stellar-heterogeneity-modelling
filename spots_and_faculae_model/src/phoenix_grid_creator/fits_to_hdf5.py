@@ -25,6 +25,7 @@ from astropy.table import QTable
 import scipy as sp
 from astropy.table import Table, vstack
 import h5py
+from typing import Sequence
 
 # internal imports
 from phoenix_grid_creator.PHOENIX_filename_conventions import *
@@ -40,8 +41,8 @@ FeHs = np.array([-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1])
 log_gs = np.arange(0, 6.1, 0.5)
 alphaM = 0
 
-T_effs = np.array([2500]) * u.K
-FeHs = [-4]
+T_effs = np.array([2500, 2700]) * u.K
+FeHs = [-4, -3, -2]
 log_gs = [0]
 
 PHOENIX_FLUX_UNITS = u.erg / (u.s * u.cm**2 * u.cm)
@@ -79,7 +80,7 @@ DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
 
 # # # # # helper functions # # # # # 
 	
-def get_wavelength_grid() -> np.ndarray:
+def get_wavelength_grid() -> Sequence[Quantity]:
 	"""
 	returns 1D array consisting of astropy Quantities of dimension length
 	"""
@@ -156,8 +157,6 @@ def download_spectrum(T_eff, FeH, log_g, wavelengths : np.array) -> phoenix_spec
 
 		return spec
 
-from typing import Sequence
-
 if __name__ == "__main__":
 
 	phoenix_wavelengths = get_wavelength_grid()
@@ -167,11 +166,26 @@ if __name__ == "__main__":
 	# pre - allocate 4d flux array
 	fluxes = np.zeros((len(T_effs), len(FeHs), len(log_gs), len(regularised_wavelengths)))
 
-	for (i, T_eff), (j, FeH), (k, log_g) in tqdm(
-		product(enumerate(T_effs), enumerate(FeHs), enumerate(log_gs)),
-		total=len(T_effs) * len(FeHs) * len(log_gs), desc="Downloading .fits spectra files"):
+	if CONVERT_WAVELENGTHS_TO_AIR:
+		phoenix_wavelengths = specutils.utils.wcs_utils.vac_to_air(phoenix_wavelengths)
+	
+	def fetch_spectra_and_indices(i, j, k, T_eff, FeH, log_g):
 		spec : phoenix_spectrum = download_spectrum(T_eff, FeH, log_g, phoenix_wavelengths)
+		return i, j, k, spec
+	
+	tasks = [
+		(i, j, k, t, f, g)
+		for i, t in enumerate(T_effs)
+		for j, f in enumerate(FeHs)
+		for k, g in enumerate(log_gs)
+	]
 
+	results = Parallel(n_jobs=-1, prefer="threads")(
+		delayed(fetch_spectra_and_indices)(*task) for task in tqdm(tasks)
+	)
+
+	spec : phoenix_spectrum
+	for i, j, k, spec in results:
 		# i think this removes units from fluxes silently - as this is some 4D array. maybe we can readd them somehow; doesnt rly matter for now though
 		fluxes[i, j, k, :] = spec.Fluxes
 	
@@ -183,14 +197,15 @@ if __name__ == "__main__":
 	# SAVING #
 
 	overwrite = True
+
 	if absolute_path.exists() and not overwrite:
 		raise FileExistsError(f"specified path already exists; and overwrite is set to false. Change the file name or turn on overwrite. (File path: {absolute_path})")
 	
 	with h5py.File(absolute_path, "w") as f:
-		f.attrs["creator"] = "Ben G"
+		f.attrs["creator"] = "Ben Green"
 		f.attrs["description"] = "Collection of synthetic spectra from PHOENIX dataset"
 		f.attrs["version"] = "0.1"
-		f.attrs["date"] = datetime.datetime.now()
+		f.attrs["date"] = str(datetime.datetime.now())
 		f.attrs["notes"] = "All spectra share the same wavelength grid."
 
 		# add some metadata to the QTable e.g. (wavelength medium = air, source, date)
@@ -230,17 +245,9 @@ if __name__ == "__main__":
 		flux_dataset.attrs[UNIT_METADATA_NAME] = str(flux_unit)
 
 	print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
-
-	# grid = spectrum_grid(vstack([grid.Table for grid in grids]))
 	
 	# if REGULARISE_TEMPERATURE_GRID:
 	# 	grid.regularise_temperatures(regularised_temperatures)
-
-	# if CONVERT_WAVELENGTHS_TO_AIR:
-	# 	grid.convert_vacuum_to_air()
-	
-	# if SAVE_TO_HDF:
-	# 	grid.new_save(absolute_path="data", name=SPECTRAL_GRID_FILENAME, overwrite=False)
 
 
 
