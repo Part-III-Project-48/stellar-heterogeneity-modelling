@@ -28,10 +28,7 @@ from astropy.table import Table, vstack
 # internal imports
 from phoenix_grid_creator.PHOENIX_filename_conventions import *
 from spots_and_faculae_model.spectrum_grid import spectrum_grid
-from spots_and_faculae_model.external_spectrum_reader import read_JWST_fits
-
-# column names
-
+from spots_and_faculae_model.phoenix_spectrum import phoenix_spectrum
 
 SAVE_TO_HDF : bool = False
 SPECTRAL_GRID_FILENAME : str = 'spectral_grid.hdf5'
@@ -43,6 +40,8 @@ log_gs = np.arange(0, 6.1, 0.5)
 alphaM = 0
 
 T_effs = [2500 * u.K]
+FeHs = [-4]
+log_gs = [0]
 
 # seems like the only data I can find is LTE data (?)
 lte : bool = True
@@ -101,7 +100,7 @@ def get_wavelength_grid() -> np.ndarray:
 
 	return wavelengths
 
-def download_spectrum(T_eff, FeH, log_g, wavelengths : np.array) -> spectrum_grid:
+def download_spectrum(T_eff, FeH, log_g, wavelengths : np.array) -> phoenix_spectrum:
 	"""
 	well use this function to parallelise getting the spectra
 	"""
@@ -138,33 +137,32 @@ def download_spectrum(T_eff, FeH, log_g, wavelengths : np.array) -> spectrum_gri
 			index_per_wavelength = index_per_wavelength.to(u.um**-1)
 			convolution_range = int((index_per_wavelength * JWST_resolution)) # in number of adjacent points to consider
 			fluxes = sp.ndimage.gaussian_filter(fluxes, convolution_range) * fluxes.unit # gaussian_filter seems to remove units
-			t = spectrum_grid.from_arrays(
-				T_effs=[T_eff]*len(regularised_wavelengths),
-				FeHs=[FeH]*len(regularised_wavelengths),
-				log_gs=[log_g]*len(regularised_wavelengths),
+			t = phoenix_spectrum(
 				wavelengths=regularised_wavelengths,
-				fluxes=np.interp(regularised_wavelengths, wavelengths, fluxes)
-				)
+				fluxes = np.interp(regularised_wavelengths, wavelengths, fluxes),
+				t_eff=T_eff,
+				feh=FeH,
+				log_g=log_g)
 		else:
-			t = spectrum_grid.from_arrays(
-					T_effs=[T_eff]*len(wavelengths),
-					FeHs=[FeH]*len(wavelengths),
-					log_gs=[log_g]*len(wavelengths),
+			t = phoenix_spectrum(
 					wavelengths=wavelengths,
-					fluxes=fluxes)
+					fluxes=fluxes,
+					t_eff=T_eff,
+					feh=FeH,
+					log_g=log_g)
 		# this might be quicker to stream data to disc rather than creating a massive df
 		# temp_df.write(HDF5_FILENAME_TO_SAVE, path = "data", serialize_meta=True, overwrite=True, append=True)
 		# continue
 
 		return t
 
-def main():
+if __name__ == "__main__":
 
 	wavelengths = get_wavelength_grid()
 
 	# now use defined ranges for the data we want, process it and save this to a hdf5 fil
-	
-	grids = Parallel(n_jobs=-1, prefer="threads")(
+
+	grids : list[phoenix_spectrum] = Parallel(n_jobs=-1, prefer="threads")(
 		delayed(download_spectrum)(T_eff, FeH, log_g, wavelengths) for T_eff, FeH, log_g in tqdm(product(T_effs, FeHs, log_gs), total=len(T_effs) * len(FeHs) * len(log_gs), desc="Downloading .fits spectra files")
 		)
 	
@@ -190,13 +188,13 @@ def main():
 				"log_gs (original data)" : log_gs}
 	
 	if SAVE_TO_HDF:
-		grid.save(absolute_path="data", name=SPECTRAL_GRID_FILENAME)
+		grid.new_save(absolute_path="data", name=SPECTRAL_GRID_FILENAME, overwrite=False)
 
 
 
-if __name__ == "__main__":
-    import cProfile, pstats
-    with cProfile.Profile() as pr:
-        main()   # or whatever entry point you want to run
-    stats = pstats.Stats(pr)
-    # stats.sort_stats("tottime").print_stats(20)
+# if __name__ == "__main__":
+#     import cProfile, pstats
+#     with cProfile.Profile() as pr:
+#         main()   # or whatever entry point you want to run
+#     stats = pstats.Stats(pr)
+#     # stats.sort_stats("tottime").print_stats(20)

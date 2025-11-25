@@ -51,3 +51,15 @@ plot fitting in different sections
 parallelise the new code plz lmao
 
 creatint the hdf5 file is massively untested with the new spectrum_grid
+
+
+
+with h5py.File("spectrum_grid.h5", "r") as f:
+    flux = f["fluxes"][i_T, i_FeH, i_log_g, :]
+
+No looping or boolean filtering needed.
+3. Vectorized interpolation is easy, because all fluxes are stored in a single 4D numpy array.
+4. Metadata (units, description) can be added with attrs:
+
+f["fluxes"].attrs["units"] = "erg / (s * cm^2 * cm)"
+f["Teff"].attrs["units"] = "K"
