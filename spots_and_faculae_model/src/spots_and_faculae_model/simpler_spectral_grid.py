@@ -57,13 +57,15 @@ def get_wavelength_grid() -> Sequence[Quantity]:
 		# the fits file is big endian; pandas requires little endian. this swaps between them
 		wavelengths = wavelengths.byteswap().view(wavelengths.dtype.newbyteorder())
 		wavelengths *= u.Angstrom
-		print("[PHOENIX GRID CREATOR] : wavelength grid found & loaded in")
+		print("[PHOENIX GRID CREATOR] : phoenix wavelength grid found & loaded in")
 
 	return wavelengths
 		
 def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wavelengths : np.array, regularised_wavelengths : np.array = None) -> phoenix_spectrum:
 	"""
-	well use this function to parallelise getting the spectra
+	we'll use this function to parallelise getting the spectra
+
+	if you want to use the original phoenix spectrum, just leave regularised_wavelengths as none
 	"""
 	try:
 		file = get_file_name(lte, T_eff, log_g, FeH, alphaM)
@@ -110,7 +112,8 @@ def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wav
 					fluxes=fluxes,
 					t_eff=T_eff,
 					feh=FeH,
-					log_g=log_g)
+					log_g=log_g,
+					normalise_flux = False) # with the original phoenix grid; this takes ages to normalise. so just save it unnormalised for now
 
 		return spec
 
@@ -118,7 +121,7 @@ class simpler_spectral_grid():
 	"""
 	this is an internal class really: its much more human readable to just use list[spectrum]; this is just for saving to / loading from a hdf5 file
 	"""
-	def __init__(self, wavelengths : np.array, t_effs : np.array, fehs : np.array, log_gs : np.array, fluxes : np.array, uses_regularised_wavelengths : bool, uses_regularised_temperatures : bool):
+	def __init__(self, wavelengths : Sequence[Quantity], t_effs : Sequence[Quantity], fehs : Sequence[Quantity], log_gs : Sequence[Quantity], fluxes : Sequence[Quantity], uses_regularised_wavelengths : bool, uses_regularised_temperatures : bool):
 		"""
 		don't use this init: use the other wrappers that download things or load in from a hdf5 file
 		(the structure of fluxes is non trivial)
@@ -137,7 +140,7 @@ class simpler_spectral_grid():
 		self.Uses_Regularised_Temperatures = uses_regularised_temperatures
 
 	@classmethod
-	def from_internet(cls, T_effs, FeHs, log_gs, regularised_wavelengths, alphaM = 0, lte = True, regularised_temperatures = None):
+	def from_internet(cls, T_effs, FeHs, log_gs, regularised_wavelengths = None, alphaM = 0, lte = True, regularised_temperatures : Sequence[Quantity] = None):
 		"""
 		seems like the only data I can find is LTE data (?)
 		"""
@@ -155,8 +158,6 @@ class simpler_spectral_grid():
 			spec : phoenix_spectrum = download_spectrum(T_eff, FeH, log_g, lte, alphaM, phoenix_wavelengths, regularised_wavelengths)
 			return i, j, k, spec
 		
-		# pre - allocate 4d flux array
-		fluxes = np.zeros((len(T_effs), len(FeHs), len(log_gs), len(regularised_wavelengths)))
 			
 		tasks = [
 			(i, j, k, t, f, g)
@@ -166,9 +167,14 @@ class simpler_spectral_grid():
 		]
 
 		results = Parallel(n_jobs=-1, prefer="threads")(
-			delayed(fetch_spectra_and_indices)(*task) for task in tqdm(tasks)
+			delayed(fetch_spectra_and_indices)(*task) for task in tqdm(tasks, desc="downloading spectra...")
 		)
+
+		_, _, _, example_spec = results[0]
 		
+		# pre - allocate 4d flux array. assumes all spectra have the same wavelength array
+		fluxes = np.zeros((len(T_effs), len(FeHs), len(log_gs), len(example_spec.Wavelengths)))
+
 		spec : phoenix_spectrum
 		for i, j, k, spec in results:
 			# i think this removes units from fluxes silently - as this is some 4D array. maybe we can readd them somehow; doesnt rly matter for now though
@@ -220,8 +226,6 @@ class simpler_spectral_grid():
 
 		print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
 
-	
-
 	@classmethod
 	def from_hdf5(cls, absolute_path : Path):
 		from astropy.units import Unit
@@ -249,3 +253,12 @@ class simpler_spectral_grid():
 			uses_regularised_temperatures = f.attrs[USES_REGULARISED_TEMPERATURES_METADATA_NAME]
 			
 		return cls(wavelengths, T_effs, FeHs, log_gs, fluxes, uses_regularised_wavelengths, uses_regularised_temperatures)
+	
+	def get_spectrum(self, T_eff : Quantity[u.K], FeH, log_g) -> phoenix_spectrum:
+		i = np.where(self.T_effs == T_eff)[0][0]
+		j = np.where(self.FeHs   == FeH)[0][0]
+		k = np.where(self.Log_gs == log_g)[0][0]
+
+		spec : phoenix_spectrum = phoenix_spectrum(self.Wavelengths, self.Fluxes[i, j, k, :], T_eff, FeH, log_g)
+
+		return spec
