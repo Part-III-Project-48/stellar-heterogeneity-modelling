@@ -262,3 +262,11 @@ class simpler_spectral_grid():
 		spec : phoenix_spectrum = phoenix_spectrum(self.Wavelengths, self.Fluxes[i, j, k, :], T_eff, FeH, log_g)
 
 		return spec
+	
+	def to_lookup_table(self):
+		return {
+			(T, FeH, g): self.Fluxes[i, j, k, :]
+			for i, T in enumerate(self.T_effs)
+			for j, FeH in enumerate(self.FeHs)
+			for k, g in enumerate(self.Log_gs)
+		}
