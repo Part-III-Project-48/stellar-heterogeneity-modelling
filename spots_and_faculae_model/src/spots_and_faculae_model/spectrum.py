@@ -12,13 +12,14 @@ quantity_support()
 from matplotlib import pyplot as plt
 import specutils
 from astropy.units import Quantity
+import warnings
 
 ## can do : update normalise jansksys to act on the spectrum class self and then update main.ipynb to use that
 
 DEFAULT_FLUX_UNIT = u.Jy
 
 class spectrum:
-	def __init__(self, wavelengths : np.array, fluxes : np.array, name : str = None, normalise_flux : bool = True, normalised_point : Quantity = 2.2 * u.um):
+	def __init__(self, wavelengths : np.array, fluxes : np.array, normalised_point : Quantity, smoothing_range : Quantity, normalise_flux : bool = True, name : str = None):
 		"""
 		Flux is going to be stored in Janskys from now on
 
@@ -50,16 +51,17 @@ class spectrum:
 		self.Name : str = name
 
 		if normalise_flux:
-			self.normalise_flux(normalised_point=normalised_point)
+			self.normalise_flux(normalised_point=normalised_point, smoothing_range=smoothing_range)
 		
 		self.Normalised_Point = normalised_point
+		self.Smoothing_Range = smoothing_range
 
 	def __getitem__(self, idx):
 		"""
 		Allow slicing, indexing, and boolean masks.
 		Returns a new spectrum with sliced wavelength and flux arrays.
 		"""
-		return spectrum(self.Wavelengths[idx], self.Fluxes[idx], name=self.Name, normalised_point=self.Normalised_Point)
+		return spectrum(self.Wavelengths[idx], self.Fluxes[idx], name=self.Name, normalised_point=self.Normalised_Point, smoothing_range=self.Smoothing_Range)
 
 	def __len__(self):
 		if len(self.Wavelengths) != len(self.Fluxes):
@@ -86,7 +88,7 @@ class spectrum:
 		plt.plot(self.Wavelengths, self.Fluxes)
 		plt.show()
 
-	def normalise_flux(self, normalised_point, smoothing_range = 0.5 * u.um) -> np.array:
+	def normalise_flux(self, normalised_point, smoothing_range) -> np.array:
 		"""
 		this will fail if wavelengths does not span at least smoothing_range
 		
@@ -103,20 +105,56 @@ class spectrum:
 		# kernel size of about 501 with 9999 points between 5 and 15 um seemed good - this range corresponds (roughly) to that 
 		wavelengths_in_range = self.Wavelengths[(self.Wavelengths[0] <= self.Wavelengths) & (self.Wavelengths <= self.Wavelengths[0] + smoothing_range)]
 		kernel_size = len(wavelengths_in_range)
+		
+		# put some bounds on kernel size
+		if not (51 <= kernel_size and kernel_size <= 1051):
+			warning_message = f"kernel_size = {kernel_size} is outside the range 51 to 1051. it may not smooth well (if below 51), or it might take very long (if above 1051). kernel_size will be clipped to between 51 and 1051."
+			warnings.warn(warning_message, UserWarning)
+		
+		kernel_size = np.clip(kernel_size, 51, 1051)
+
 		if kernel_size % 2 == 0:
 			kernel_size +=1
 		
 		# smooth to make sure there's no spikes
 		unit = self.Fluxes.unit # doesn't matter what this is: it just has to be the same for the dividing out and timesing (medfilt seems to silently remove units)
-		counts = [(i / unit).value for i in self.Fluxes]
+		# counts = self.Fluxes.to_value(unit)
+		counts = self.Fluxes.to_value(unit)
 		counts = np.array(counts, dtype=np.float64)
-		
 		smoothed_counts = sp.signal.medfilt(counts, kernel_size=[kernel_size])
 		# normalise the counts at normalised_point (or next nearest value) to be 1
 		counts /= smoothed_counts[(normalised_point <= self.Wavelengths)][0]
 
 		self.Fluxes = counts * unit
 	
+
+	def faster_normalise_flux(self, smoothing_range):
+		"""
+		untested / wip
+
+		maybe medfilt is maybe ? just rly slow. could try other filters
+		"""
+		from scipy.signal import savgol_filter
+
+		if (u.get_physical_type(self.Fluxes[0].unit) != u.get_physical_type(u.Jy)):
+			raise ValueError(f"fluxes are in units of {self.Fluxes.unit}. this is not in a unit convertible to janskys")
+
+		wavelengths_in_range = self.Wavelengths[(self.Wavelengths[0] <= self.Wavelengths) & (self.Wavelengths <= self.Wavelengths[0] + smoothing_range)]
+
+		kernel_size = len(wavelengths_in_range)
+		
+		if kernel_size % 2 == 0:
+			kernel_size += 1
+
+		smoothed_counts = savgol_filter(
+			self.Fluxes,
+			window_length=kernel_size,
+			polyorder=2,
+			mode="mirror",
+		)
+
+		self.Fluxes = smoothed_counts
+
 	@property
 	def air_wavelengths(self):
 		"""

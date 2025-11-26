@@ -11,7 +11,7 @@ from pathlib import Path
 # internal imports
 from spots_and_faculae_model.simpler_spectral_grid import simpler_spectral_grid
 from spots_and_faculae_model.spectrum import spectrum
-from spots_and_faculae_model.readers import read_JWST_fits
+from spots_and_faculae_model.readers import read_JWST_fits, read_HARPS_fits, JWST_resolution, HARPS_resolution, HARPS_normalising_point, HARPS_smoothing_range
 
 SPECTRAL_GRID_FILENAME : Path = Path("spectral_grid.hdf5")
 
@@ -46,13 +46,13 @@ regularised_temperatures = np.arange(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KEL
 if __name__ == "__main__":
 
 	# load in a spectrum and use that as the regularised wavelengths
-	external_spectrum_path = Path("../../assets/MAST_2025-10-26T11_57_04.058Z - LTT/MAST_2025-10-26T11_57_04.058Z/JWST/jw03557004001_04101_00001-seg001_nis_x1dints.fits")
+	external_spectrum_path = Path("../../assets/ADP.2016-02-04T01_02_52.843.fits")
 	script_dir = Path(__file__).resolve().parent
 	wavelength_grid_absolute_path = (script_dir / external_spectrum_path).resolve()
 
-	spectrum_to_decompose : spectrum = read_JWST_fits(wavelength_grid_absolute_path)
+	spectrum_to_decompose : spectrum = read_HARPS_fits(wavelength_grid_absolute_path)
 
-	spec_grid : simpler_spectral_grid = simpler_spectral_grid.from_internet(T_effs, FeHs, log_gs, regularised_wavelengths=spectrum_to_decompose.Wavelengths)
+	spec_grid : simpler_spectral_grid = simpler_spectral_grid.from_internet(T_effs, FeHs, log_gs, regularised_wavelengths=spectrum_to_decompose.Wavelengths, resolution_to_convolve_with=HARPS_resolution, normalising_point=HARPS_normalising_point, smoothing_range=HARPS_smoothing_range)
 
 	spec_grid.save(absolute_path=SPECTRAL_GRID_FILENAME, overwrite=True)
 

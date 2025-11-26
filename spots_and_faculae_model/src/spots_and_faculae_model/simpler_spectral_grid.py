@@ -62,7 +62,7 @@ def get_wavelength_grid() -> Sequence[Quantity]:
 
 	return wavelengths
 		
-def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wavelengths : np.array, regularised_wavelengths : np.array = None) -> phoenix_spectrum:
+def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wavelengths : np.array, normalising_point : Quantity, smoothing_range : Quantity, regularised_wavelengths : np.array = None, resolution_to_convolve_with : Quantity = None) -> phoenix_spectrum:
 	"""
 	we'll use this function to parallelise getting the spectra
 
@@ -94,19 +94,20 @@ def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wav
 		# for some reason, the fits file is big-endian; pandas required little-endian
 		fluxes = fluxes.byteswap().view(fluxes.dtype.newbyteorder())
 		fluxes *= PHOENIX_FLUX_UNITS
-		JWST_resolution = .001 * u.um
 
 		if regularised_wavelengths != None:
 			index_per_wavelength = len(phoenix_wavelengths) / (np.max(phoenix_wavelengths) - np.min(phoenix_wavelengths))
 			index_per_wavelength = index_per_wavelength.to(u.um**-1)
-			convolution_range = int((index_per_wavelength * JWST_resolution)) # in number of adjacent points to consider
+			convolution_range = int((index_per_wavelength * resolution_to_convolve_with)) # in number of adjacent points to consider
 			fluxes = sp.ndimage.gaussian_filter(fluxes, convolution_range) * fluxes.unit # gaussian_filter seems to remove units
 			spec = phoenix_spectrum(
 				wavelengths=regularised_wavelengths,
 				fluxes = np.interp(regularised_wavelengths, phoenix_wavelengths, fluxes),
 				t_eff=T_eff,
 				feh=FeH,
-				log_g=log_g)
+				log_g=log_g,
+				normalising_point=normalising_point,
+				smoothing_range=smoothing_range)
 		else:
 			spec = phoenix_spectrum(
 					wavelengths=phoenix_wavelengths,
@@ -114,6 +115,8 @@ def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wav
 					t_eff=T_eff,
 					feh=FeH,
 					log_g=log_g,
+					normalising_point=None, # bodge
+					smoothing_range=None,
 					normalise_flux = False) # when using the original phoenix wavelength grid, this takes ages to normalise. so just save it unnormalised for now
 
 		return spec
@@ -141,7 +144,7 @@ class simpler_spectral_grid():
 		self.Uses_Regularised_Temperatures = uses_regularised_temperatures
 
 	@classmethod
-	def from_internet(cls, T_effs, FeHs, log_gs, regularised_wavelengths = None, alphaM = 0, lte = True, regularised_temperatures : Sequence[Quantity] = None):
+	def from_internet(cls, T_effs, FeHs, log_gs, normalising_point : Quantity, smoothing_range : Quantity, regularised_wavelengths = None, alphaM = 0, lte = True, regularised_temperatures : Sequence[Quantity] = None, resolution_to_convolve_with : Quantity = None):
 		"""
 		seems like the only data I can find is LTE data (?)
 		"""
@@ -156,7 +159,7 @@ class simpler_spectral_grid():
 		# 	phoenix_wavelengths = specutils.utils.wcs_utils.vac_to_air(phoenix_wavelengths)
 		
 		def fetch_spectra_and_indices(i, j, k, T_eff, FeH, log_g):
-			spec : phoenix_spectrum = download_spectrum(T_eff, FeH, log_g, lte, alphaM, phoenix_wavelengths, regularised_wavelengths)
+			spec : phoenix_spectrum = download_spectrum(T_eff, FeH, log_g, lte, alphaM, phoenix_wavelengths, normalising_point, smoothing_range, regularised_wavelengths, resolution_to_convolve_with=resolution_to_convolve_with)
 			return i, j, k, spec
 		
 			
