@@ -266,7 +266,13 @@ class simpler_spectral_grid():
 
 		return spec
 	
-	def to_lookup_table(self):
+	def to_lookup_table(self) -> Sequence[Quantity]:
+		"""
+		fluxes = lookup_table[T_eff, FeH, log_g]
+		gives the flux (as a numpy array of quantities) for those parameters (if that exists)
+
+		and its O(1)!!!!!
+		"""
 		return {
 			(T, FeH, g): self.Fluxes[i, j, k, :]
 			for i, T in enumerate(self.T_effs)
