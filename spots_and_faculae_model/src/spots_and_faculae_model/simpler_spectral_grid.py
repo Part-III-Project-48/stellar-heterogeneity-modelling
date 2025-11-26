@@ -22,6 +22,7 @@ import specutils
 from phoenix_grid_creator.PHOENIX_filename_conventions import *
 from spots_and_faculae_model.phoenix_spectrum import phoenix_spectrum
 import h5py
+from spots_and_faculae_model.spectrum import DEFAULT_FLUX_UNIT
 
 PHOENIX_FLUX_UNITS = u.erg / (u.s * u.cm**2 * u.cm)
 
@@ -113,7 +114,7 @@ def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wav
 					t_eff=T_eff,
 					feh=FeH,
 					log_g=log_g,
-					normalise_flux = False) # with the original phoenix grid; this takes ages to normalise. so just save it unnormalised for now
+					normalise_flux = False) # when using the original phoenix wavelength grid, this takes ages to normalise. so just save it unnormalised for now
 
 		return spec
 
@@ -207,7 +208,9 @@ class simpler_spectral_grid():
 
 			wavelength_unit = self.Wavelengths.unit
 			T_eff_unit = self.T_effs.unit
-			flux_unit = PHOENIX_FLUX_UNITS
+
+			# spectrum class forces everything into DEFAULT_FLUX_UNIT (currently Janskys) (or maybe megajanskys; but its all normalised anyway so I don't think it matters much)
+			flux_unit = DEFAULT_FLUX_UNIT
 
 			wavelength_dataset = g.create_dataset(WAVELENGTH_DATASET_NAME, data=np.array(self.Wavelengths))
 			wavelength_dataset.attrs[UNIT_METADATA_NAME] = str(wavelength_unit)

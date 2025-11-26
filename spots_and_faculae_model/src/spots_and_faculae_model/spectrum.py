@@ -14,6 +14,8 @@ import specutils
 
 ## can do : update normalise jansksys to act on the spectrum class self and then update main.ipynb to use that
 
+DEFAULT_FLUX_UNIT = u.Jy
+
 class spectrum:
 	def __init__(self, wavelengths : np.array, fluxes : np.array, name : str = None, normalise_flux : bool = True):
 		"""
@@ -37,7 +39,7 @@ class spectrum:
 		if len(wavelengths) != len(fluxes):
 			raise ValueError("wavelengths and fluxes must have the same length")
 		
-		fluxes_janskys = fluxes.to(u.Jy, equivalencies=u.spectral_density(wavelengths))
+		fluxes_janskys = fluxes.to(DEFAULT_FLUX_UNIT, equivalencies=u.spectral_density(wavelengths))
 
 		# make sure the wavelengths are in ascending order, so that normalising_janskys doesn't break
 		indices = np.argsort(wavelengths) # get the indices that would sort the wavelengths np.array
