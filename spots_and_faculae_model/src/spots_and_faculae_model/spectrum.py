@@ -15,7 +15,7 @@ import specutils
 ## can do : update normalise jansksys to act on the spectrum class self and then update main.ipynb to use that
 
 class spectrum:
-	def __init__(self, wavelengths : np.array, fluxes : np.array, name : str = None):
+	def __init__(self, wavelengths : np.array, fluxes : np.array, name : str = None, normalise_flux : bool = True):
 		"""
 		Flux is going to be stored in Janskys from now on
 
@@ -46,7 +46,8 @@ class spectrum:
 		self.Fluxes : np.array = fluxes_janskys[indices]
 		self.Name : str = name
 
-		self.normalise_flux()
+		if normalise_flux:
+			self.normalise_flux()
 
 	def __getitem__(self, idx):
 		"""

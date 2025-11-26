@@ -8,6 +8,7 @@ from scipy.interpolate import interp1d
 import astropy
 from astropy.units import Quantity
 import astropy.units as u
+import h5py
 
 from spots_and_faculae_model.spectrum import spectrum
 
@@ -59,7 +60,7 @@ class spectrum_grid:
 
 		self.FancyTable = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, SPECTRUM_COLUMN])
 
-		for T_eff, FeH, log_g in tqdm(product(self.T_effs, self.FeHs, self.log_gs), total= len(self.T_effs) * len(self.FeHs) * len(self.log_gs), desc="Creating fancier spectral grid..."):
+		def get_row(T_eff, FeH, log_g):
 			subset = self.Table[(self.Table[TEFF_COLUMN] == T_eff) &
 								(self.Table[FEH_COLUMN] == FeH) &
 								(self.Table[LOGG_COLUMN] == log_g)]
@@ -74,7 +75,13 @@ class spectrum_grid:
 				SPECTRUM_COLUMN : [spec]
 			})
 
-			self.FancyTable = pd.concat([self.FancyTable, new_row], ignore_index=True)
+			return new_row
+
+		rows = []
+		for T_eff, FeH, log_g in tqdm(product(self.T_effs, self.FeHs, self.log_gs), total= len(self.T_effs) * len(self.FeHs) * len(self.log_gs), desc="Creating fancier spectral grid..."):
+			rows.append(get_row(T_eff, FeH, log_g))
+		
+		self.FancyTable = pd.DataFrame(rows)
 		
 		self.FancyTable[SPECTRUM_COLUMN] = self.FancyTable[SPECTRUM_COLUMN].astype("object")
 
@@ -96,10 +103,44 @@ class spectrum_grid:
 		names=(TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WAVELENGTH_COLUMN, FLUX_COLUMN))
 		return cls(table)
 
-	# def save(self, absolute_path : Path = "default_path", name : str = "spectrum_grid", Overwrite : bool = False):
-	# 	print("[PHOENIX GRID CREATOR] : writing dataframe to hdf5...")
-	# 	self.Table.write(name, path = absolute_path, serialize_meta=True, overwrite=Overwrite)
-	# 	print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
+	def save(self, absolute_path : Path = "default_path", name : str = "spectrum_grid", Overwrite : bool = False):
+		print("[PHOENIX GRID CREATOR] : writing dataframe to hdf5...")
+		self.Table.write(name, path = absolute_path, serialize_meta=True, overwrite=Overwrite)
+		print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
+
+	def new_save(self, absolute_path : Path = "default_path", name : str = "spectrum_grid", overwrite : bool = False):
+		if absolute_path.exists() and not overwrite:
+			raise FileExistsError(f"specified path already exists; and overwrite is set to false. Change the file name or turn on overwrite. (File path: {absolute_path})")
+
+		Teffs = np.unique(self.Table[TEFF_COLUMN])
+		FeHs = np.unique(self.Table[FEH_COLUMN])
+		log_gs = np.unique(self.Table[LOGG_COLUMN])
+
+		# assume wavelengths are the same for all spectra
+		wavelengths = np.array(self.Table[WAVELENGTH_COLUMN][0])
+
+		# pre - allocate 4d flux array
+		fluxes = np.zeros((len(Teffs), len(FeHs), len(log_gs), len(wavelengths)))
+
+		for (i, T_eff), (j, FeH), (k, log_g) in tqdm(product(
+			enumerate(Teffs),
+			enumerate(FeHs),
+			enumerate(log_gs)), desc="saving hdf5 file..."):
+			subset = self.Table[(self.Table[TEFF_COLUMN] == T_eff) &
+					   			(self.Table[FEH_COLUMN] == FeH) &
+								(self.Table[LOGG_COLUMN] == log_g)]
+			
+			fluxes[i, j, k, :] = subset[FLUX_COLUMN][0]
+		
+		with h5py.File(absolute_path, "w") as f:
+			f.create_dataset("wavelengths", data=wavelengths)
+			f.create_dataset("Teff", data=Teffs)
+			f.create_dataset("FeH", data=FeHs)
+			f.create_dataset("log_g", data=log_gs)
+			f.create_dataset("fluxes", data=fluxes)
+		print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
+
+
 
 	def regularise_temperatures(self, new_T_effs : np.array) -> None:
 		"""
