@@ -56,3 +56,26 @@ if so, then maybe that area is just very noisy in the JWST spectra
 
 create some code to analyse the JWST spectra over different integration indices i.e. to see the transit graph (of total flux vs integration_index for all 4 (or however many) files)
 and maybe to see the 
+
+[FIXED] i dont believe the optimizeresult.optimality is a good number: bad looking fits can have very small optimality; e.g. rolling an axis by like 5000 still seems to fit well
+
+could use the matrix minimisation method to find
+1) number of components to fit for
+2) initial guess for their weights
+
+also it would maybe be better to be testing the matrix min method on multiple stars at once (as some stars might simply not have sun spots, we don't rly know lmao)
+
+could also add alphaM in, why not, the code is plently fast enough so it would just be 1 slightly slow download
+
+maybe re-add in temperature interpolation into fits_to_hdf5 file?
+idk if temperature interpolation would help the matrix minimisation or ML minimisation though... (ig it wouldn't, but idrk ofc)
+
+could link code to JWST api so that users can just request a given star straight from the JWST database (this is probably something for later)
+
+np.roll(+-1) etc doesnt seem to help on JWST spectra - but maybe a slight shift in freq before convolution would help?
+the spectral lines are quite narrow, so things could be quite sensitive to a small change in wavelength
+what you could do to test this: componentise a spectrum to find its e.g. top 10 components, then make a temporary spectral grid using just those 10 components at a higher resolution. now shift by tiny amounts of wavelength and then convolve, get fit optimality, and plot. maybe there is some small shift out.
+
+or just use higher res spectra lmao
+
+or use a different minimiser like Harris suggested
