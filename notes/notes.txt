@@ -5,10 +5,9 @@ combined spectra (pseudo-random) + weights of each component
 and when given any graph gives the closest representation of that graph as a sum of the components, aka gives us the weights
 and from those weights we can tell the fractional area of each temperature
 
-TODO
-normalisation
-basic ML of some sort
-make a spectrum class that has all the things we need like normalisation etc
+[DONE] normalisation
+[DONE] basic ML of some sort
+[DONE] make a spectrum class that has all the things we need like normalisation etc
 
 add proof that the temperature interpolation is working to documentation.md
 
@@ -16,13 +15,13 @@ add proof that the temperature interpolation is working to documentation.md
 
 add the full hdf5 file to a google drive (run on main pc to create)
 
-maybe convert fits_to_hdf5 to use astropy quantities... might be nice (kinda needed lmao)
+[DONE] maybe convert fits_to_hdf5 to use astropy quantities... might be nice (kinda needed lmao)
 
 ## notes: may as well remove out of range/bounds wavelengths before appending to df, even if we're not regularising the grid
         
 stream data to hdf5? to make it a little less bad?
 
-can update wavelength regularisation to include gaussian convolution?
+[DONE] can update wavelength regularisation to include gaussian convolution?
 
 we could test our model on the suns spectra as then maybe the % of area at different temperatures to T_eff might be known...
 
@@ -38,9 +37,22 @@ the numerically fitted spectrum looks to be like 2 indices shifted to the right 
 maybe see if you can fit just 1 component to the spectra, and see how much worse/better that is than a sum of x components
 -> if its more or less just as good, then our model might not be doing anything that fancy atm
 
-way better way of doing spectral grid would be a class
+[DONE] way better way of doing spectral grid would be a class
 contains a dataframe with 4 columns
 first 3 columns are the paramters
 but the 4th column is a reference to a spectrum object
-
 way better than this astropy stuff i think
+
+reorganise codebase - e.g. make all notes in one place, simplify github issues; make the poetry package top level; refactor spectral grid to contain objects
+
+plot fitting in different sections
+[DONE] parallelise the new code plz lmao
+
+[DONE] creating the hdf5 file is massively untested with the new spectrum_grid
+
+work out why the gaussian medfilt looks as if its flattening out the higher wavelength range of JWST
+maybe it isnt - is the PHOENIX data just actually flatter there?
+if so, then maybe that area is just very noisy in the JWST spectra
+
+create some code to analyse the JWST spectra over different integration indices i.e. to see the transit graph (of total flux vs integration_index for all 4 (or however many) files)
+and maybe to see the 
