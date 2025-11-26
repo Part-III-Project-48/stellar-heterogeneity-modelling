@@ -4,11 +4,15 @@ from pathlib import Path
 from astropy.table import QTable
 import astropy.units as u
 from astropy.io import fits
+from astropy.units import Unit
 
 import numpy as np
 from spots_and_faculae_model.spectrum import spectrum
 
-def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str = None, INTEGRATION_INDEX : int = 0) -> QTable:
+JWST_WAVELENGTH_UNITS : Unit = u.um
+JWST_FLUX_UNITS : Unit = u.MJy
+
+def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str = None, INTEGRATION_INDEX : int = 0) -> spectrum:
 	"""
 	Attributes
 	----------
@@ -24,8 +28,8 @@ def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str
 		hdr = hdul[HDU_INDEX].header
 		
 		# these column name strings are unique to JWST 1D 
-		spec : spectrum = spectrum(wavelengths = data["WAVELENGTH"][INTEGRATION_INDEX] * u.um,
-				  fluxes = data["FLUX"][INTEGRATION_INDEX] * u.MJy, name=name)
+		spec : spectrum = spectrum(wavelengths = data["WAVELENGTH"][INTEGRATION_INDEX] * JWST_WAVELENGTH_UNITS,
+				  fluxes = data["FLUX"][INTEGRATION_INDEX] * JWST_FLUX_UNITS, name=name)
 
 		if verbose:
 			hdul.info()

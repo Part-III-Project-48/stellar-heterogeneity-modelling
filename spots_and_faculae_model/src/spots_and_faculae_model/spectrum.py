@@ -11,13 +11,14 @@ from astropy.visualization import quantity_support
 quantity_support()
 from matplotlib import pyplot as plt
 import specutils
+from astropy.units import Quantity
 
 ## can do : update normalise jansksys to act on the spectrum class self and then update main.ipynb to use that
 
 DEFAULT_FLUX_UNIT = u.Jy
 
 class spectrum:
-	def __init__(self, wavelengths : np.array, fluxes : np.array, name : str = None, normalise_flux : bool = True):
+	def __init__(self, wavelengths : np.array, fluxes : np.array, name : str = None, normalise_flux : bool = True, normalised_point : Quantity = 2.2 * u.um):
 		"""
 		Flux is going to be stored in Janskys from now on
 
@@ -49,14 +50,16 @@ class spectrum:
 		self.Name : str = name
 
 		if normalise_flux:
-			self.normalise_flux()
+			self.normalise_flux(normalised_point=normalised_point)
+		
+		self.Normalised_Point = normalised_point
 
 	def __getitem__(self, idx):
 		"""
 		Allow slicing, indexing, and boolean masks.
 		Returns a new spectrum with sliced wavelength and flux arrays.
 		"""
-		return spectrum(self.Wavelengths[idx], self.Fluxes[idx], name=self.Name)
+		return spectrum(self.Wavelengths[idx], self.Fluxes[idx], name=self.Name, normalised_point=self.Normalised_Point)
 
 	def __len__(self):
 		if len(self.Wavelengths) != len(self.Fluxes):
@@ -83,7 +86,7 @@ class spectrum:
 		plt.plot(self.Wavelengths, self.Fluxes)
 		plt.show()
 
-	def normalise_flux(self, normalised_point = 2.2 * u.um, smoothing_range = 0.5 * u.um) -> np.array:
+	def normalise_flux(self, normalised_point, smoothing_range = 0.5 * u.um) -> np.array:
 		"""
 		this will fail if wavelengths does not span at least smoothing_range
 		
@@ -104,7 +107,7 @@ class spectrum:
 			kernel_size +=1
 		
 		# smooth to make sure there's no spikes
-		unit = u.Jy # doesn't matter what this is: it just has to be the same for the dividing out and timesing (medfilt seems to silently remove units)
+		unit = self.Fluxes.unit # doesn't matter what this is: it just has to be the same for the dividing out and timesing (medfilt seems to silently remove units)
 		counts = [(i / unit).value for i in self.Fluxes]
 		counts = np.array(counts, dtype=np.float64)
 		
