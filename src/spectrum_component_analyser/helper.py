@@ -12,8 +12,8 @@ from joblib import Parallel, delayed
 from typing import Sequence, Tuple
 from scipy.optimize._optimize import OptimizeResult
 
-from spots_and_faculae_model.spectrum import spectrum
-from spots_and_faculae_model.spectral_grid import spectral_grid
+from spectrum_component_analyser.internals.spectrum import spectrum
+from spectrum_component_analyser.internals.spectral_grid import spectral_grid
 
 # units should be stored in the astropy quantity anyway
 # changing these is fine, as long as a new spectral grid is created which uses these column names
@@ -66,7 +66,7 @@ def get_optimality(A, result, spectrum_to_decompose : spectrum):
 
 # # # plot some data # # #
 # dependent on the old spectrum_grid class, but its fine for now (and its just dependent on some arbitrary strings anyway)
-from spots_and_faculae_model.spectrum_grid import TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN
+from spectrum_component_analyser.helper import TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN
 WEIGHT_COLUMN : str = "weight"
 
 def plot_nicely(A, result, parameter_space, spec_grid : spectral_grid, spectrum_to_decompose : spectrum):

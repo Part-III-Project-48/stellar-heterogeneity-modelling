@@ -19,9 +19,9 @@ from typing import Sequence
 
 # internal imports
 from phoenix_grid_creator.PHOENIX_filename_conventions import *
-from spots_and_faculae_model.phoenix_spectrum import phoenix_spectrum
+from spectrum_component_analyser.internals.phoenix_spectrum import phoenix_spectrum
 import h5py
-from spots_and_faculae_model.spectrum import DEFAULT_FLUX_UNIT
+from spectrum_component_analyser.internals.spectrum import DEFAULT_FLUX_UNIT
 
 PHOENIX_FLUX_UNITS = u.erg / (u.s * u.cm**2 * u.cm)
 

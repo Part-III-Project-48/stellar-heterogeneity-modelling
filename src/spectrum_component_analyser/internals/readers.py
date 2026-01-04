@@ -6,7 +6,7 @@ from astropy.io import fits
 from astropy.units import Unit
 
 import numpy as np
-from spots_and_faculae_model.spectrum import spectrum
+from spectrum_component_analyser.internals.spectrum import spectrum
 
 JWST_WAVELENGTH_UNITS : Unit = u.um
 JWST_FLUX_UNITS : Unit = u.MJy
