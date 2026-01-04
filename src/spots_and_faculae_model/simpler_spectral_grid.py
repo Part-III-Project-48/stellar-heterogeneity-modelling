@@ -16,7 +16,6 @@ import datetime
 import scipy as sp
 import h5py
 from typing import Sequence
-import specutils
 
 # internal imports
 from phoenix_grid_creator.PHOENIX_filename_conventions import *

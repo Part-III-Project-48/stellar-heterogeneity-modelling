@@ -17,7 +17,6 @@ JWST_normalising_point = 2.2 * u.um
 JWST_smoothing_range = 0.5 * u.um
 
 
-
 def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str = None, INTEGRATION_INDEX : int = 0) -> spectrum:
 	"""
 	Attributes

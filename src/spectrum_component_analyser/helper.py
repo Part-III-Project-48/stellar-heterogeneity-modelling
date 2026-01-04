@@ -22,6 +22,15 @@ from spots_and_faculae_model.spectrum import spectrum
 from spots_and_faculae_model.readers import read_JWST_fits
 from spots_and_faculae_model.simpler_spectral_grid import simpler_spectral_grid
 
+# units should be stored in the astropy quantity anyway
+# changing these is fine, as long as a new spectral grid is created which uses these column names
+TEFF_COLUMN = "T_eff / K"
+FEH_COLUMN = "Fe/H / relative to solar"
+LOGG_COLUMN = "log_g / log(cm s^(-2))"
+WAVELENGTH_COLUMN = "wavelength / angstroms"
+FLUX_COLUMN = "flux / erg / (s * cm**2 * cm)"
+SPECTRUM_COLUMN : str = "spectrum object"
+
 def calc_result(parameter_space, lookup_table, spec_grid : simpler_spectral_grid, mask, spectrum_to_decompose, total_number_of_components : int = None, verbose : bool = True) -> Tuple[np.ndarray, OptimizeResult]:
     A = np.empty((0, 0))
 
