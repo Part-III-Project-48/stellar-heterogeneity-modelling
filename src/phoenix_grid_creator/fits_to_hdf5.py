@@ -9,9 +9,9 @@ from astropy import units as u
 from pathlib import Path
 
 # internal imports
-from spots_and_faculae_model.simpler_spectral_grid import simpler_spectral_grid
+from spots_and_faculae_model.spectral_grid import spectral_grid
 from spots_and_faculae_model.spectrum import spectrum
-from spots_and_faculae_model.readers import read_JWST_fits, read_HARPS_fits, JWST_resolution, HARPS_resolution, HARPS_normalising_point, HARPS_smoothing_range
+from src.spectrum_component_analyser.internals.readers import read_JWST_fits, read_HARPS_fits, JWST_resolution, HARPS_resolution, HARPS_normalising_point, HARPS_smoothing_range
 
 SPECTRAL_GRID_FILENAME : Path = Path("spectral_grid.hdf5")
 
@@ -36,10 +36,10 @@ MAX_TEMPERATURE_KELVIN = 4500
 TEMPERATURE_RESOLUTION_KELVIN = 50
 regularised_temperatures = np.arange(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KELVIN + TEMPERATURE_RESOLUTION_KELVIN, TEMPERATURE_RESOLUTION_KELVIN)
 
-# set to np.inf to ignore
-# DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
 
 # unsupported atm
+# set to np.inf to ignore
+# DEBUG_MAX_NUMBER_OF_SPECTRA_TO_DOWNLOAD : int = np.inf
 # if REGULARISE_TEMPERATURE_GRID:
 # 	grid.regularise_temperatures(regularised_temperatures)
 
@@ -52,18 +52,8 @@ if __name__ == "__main__":
 
 	spectrum_to_decompose : spectrum = read_HARPS_fits(wavelength_grid_absolute_path)
 
-	spec_grid : simpler_spectral_grid = simpler_spectral_grid.from_internet(T_effs, FeHs, log_gs, regularised_wavelengths=spectrum_to_decompose.Wavelengths, resolution_to_convolve_with=HARPS_resolution, normalising_point=HARPS_normalising_point, smoothing_range=HARPS_smoothing_range)
+	spec_grid : spectral_grid = spectral_grid.from_internet(T_effs, FeHs, log_gs, regularised_wavelengths=spectrum_to_decompose.Wavelengths, resolution_to_convolve_with=HARPS_resolution, normalising_point=HARPS_normalising_point, smoothing_range=HARPS_smoothing_range)
 
 	spec_grid.save(absolute_path=SPECTRAL_GRID_FILENAME, overwrite=True)
 
-	test_read : simpler_spectral_grid = simpler_spectral_grid.from_hdf5(SPECTRAL_GRID_FILENAME)
-
-
-
-
-# if __name__ == "__main__":
-#     import cProfile, pstats
-#     with cProfile.Profile() as pr:
-#         main()   # or whatever entry point you want to run
-#     stats = pstats.Stats(pr)
-#     # stats.sort_stats("tottime").print_stats(20)
+	test_read : spectral_grid = spectral_grid.from_hdf5(SPECTRAL_GRID_FILENAME)

@@ -1,11 +1,10 @@
-# ignore all fits files everywhere - they are big
-**/*.fits
+# ignore files used as examples (to understand their structure etc)
+example_files/**
 
+# ignore spectra & data files everywhere - they are big
+**/*.fits
 **/*.h5
 **/*.hdf5
 
+# python
 **/*.pyc
-
-archive/
-
-spots_and_faculae_model/assets/**

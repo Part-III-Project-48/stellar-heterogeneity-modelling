@@ -2,7 +2,7 @@ import numpy as np
 from astropy.units import Quantity
 import astropy.units as u
 
-from spots_and_faculae_model.spectrum import spectrum
+from spectrum_component_analyser.internals.spectrum import spectrum
 
 class phoenix_spectrum(spectrum):
    def __init__(self, wavelengths : np.array, fluxes : np.array, t_eff : Quantity[u.K], feh, log_g, normalising_point : Quantity, smoothing_range : Quantity, name : str = None, normalise_flux = True):

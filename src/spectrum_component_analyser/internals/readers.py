@@ -6,7 +6,7 @@ from astropy.io import fits
 from astropy.units import Unit
 
 import numpy as np
-from spots_and_faculae_model.spectrum import spectrum
+from spectrum_component_analyser.internals.spectrum import spectrum
 
 JWST_WAVELENGTH_UNITS : Unit = u.um
 JWST_FLUX_UNITS : Unit = u.MJy
@@ -15,7 +15,6 @@ JWST_resolution = .001 * u.um
 
 JWST_normalising_point = 2.2 * u.um
 JWST_smoothing_range = 0.5 * u.um
-
 
 
 def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str = None, INTEGRATION_INDEX : int = 0) -> spectrum:
@@ -100,7 +99,7 @@ def read_HARPS_fits(fits_absolute_path : Path, verbose : bool = False, name : st
 	with fits.open(fits_absolute_path) as hdul:
 		HDU_INDEX = 1 # aka EXTRACT1D
 		
-
+		
 		data = hdul[HDU_INDEX].data
 		hdr = hdul[HDU_INDEX].header
 		

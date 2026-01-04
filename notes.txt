@@ -79,3 +79,5 @@ what you could do to test this: componentise a spectrum to find its e.g. top 10 
 or just use higher res spectra lmao
 
 or use a different minimiser like Harris suggested
+
+looks like the medfilt is smoothing out the phoenix spectra far too much for the HARPS wavelengths, maybe wanna check that somehow
