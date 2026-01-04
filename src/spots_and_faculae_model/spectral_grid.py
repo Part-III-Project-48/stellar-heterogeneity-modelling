@@ -120,7 +120,7 @@ def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wav
 
 		return spec
 
-class simpler_spectral_grid():
+class spectral_grid():
 	"""
 	this is an internal class really: its much more human readable to just use list[spectrum]; this is just for saving to / loading from a hdf5 file
 	"""

@@ -20,7 +20,7 @@ from scipy.optimize._optimize import OptimizeResult
 
 from spots_and_faculae_model.spectrum import spectrum
 from spots_and_faculae_model.readers import read_JWST_fits
-from spots_and_faculae_model.simpler_spectral_grid import simpler_spectral_grid
+from spots_and_faculae_model.spectral_grid import spectral_grid
 
 # units should be stored in the astropy quantity anyway
 # changing these is fine, as long as a new spectral grid is created which uses these column names
@@ -31,7 +31,7 @@ WAVELENGTH_COLUMN = "wavelength / angstroms"
 FLUX_COLUMN = "flux / erg / (s * cm**2 * cm)"
 SPECTRUM_COLUMN : str = "spectrum object"
 
-def calc_result(parameter_space, lookup_table, spec_grid : simpler_spectral_grid, mask, spectrum_to_decompose, total_number_of_components : int = None, verbose : bool = True) -> Tuple[np.ndarray, OptimizeResult]:
+def calc_result(parameter_space, lookup_table, spec_grid : spectral_grid, mask, spectrum_to_decompose, total_number_of_components : int = None, verbose : bool = True) -> Tuple[np.ndarray, OptimizeResult]:
     A = np.empty((0, 0))
 
     def force_to_janskys(T_eff : Quantity, FeH : Quantity, log_g : Quantity, wavelengths : Sequence[Quantity], mask):
@@ -76,7 +76,7 @@ def get_optimality(A, result, spectrum_to_decompose : spectrum):
 from spots_and_faculae_model.spectrum_grid import TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN
 WEIGHT_COLUMN : str = "weight"
 
-def plot_nicely(A, result, parameter_space, spec_grid : simpler_spectral_grid, spectrum_to_decompose : spectrum):
+def plot_nicely(A, result, parameter_space, spec_grid : spectral_grid, spectrum_to_decompose : spectrum):
     result_map = {}
     i = 0
     for (T_eff, FeH, log_g) in parameter_space:

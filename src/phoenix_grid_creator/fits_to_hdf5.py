@@ -9,7 +9,7 @@ from astropy import units as u
 from pathlib import Path
 
 # internal imports
-from spots_and_faculae_model.simpler_spectral_grid import simpler_spectral_grid
+from spots_and_faculae_model.spectral_grid import spectral_grid
 from spots_and_faculae_model.spectrum import spectrum
 from spots_and_faculae_model.readers import read_JWST_fits, read_HARPS_fits, JWST_resolution, HARPS_resolution, HARPS_normalising_point, HARPS_smoothing_range
 
@@ -52,11 +52,11 @@ if __name__ == "__main__":
 
 	spectrum_to_decompose : spectrum = read_HARPS_fits(wavelength_grid_absolute_path)
 
-	spec_grid : simpler_spectral_grid = simpler_spectral_grid.from_internet(T_effs, FeHs, log_gs, regularised_wavelengths=spectrum_to_decompose.Wavelengths, resolution_to_convolve_with=HARPS_resolution, normalising_point=HARPS_normalising_point, smoothing_range=HARPS_smoothing_range)
+	spec_grid : spectral_grid = spectral_grid.from_internet(T_effs, FeHs, log_gs, regularised_wavelengths=spectrum_to_decompose.Wavelengths, resolution_to_convolve_with=HARPS_resolution, normalising_point=HARPS_normalising_point, smoothing_range=HARPS_smoothing_range)
 
 	spec_grid.save(absolute_path=SPECTRAL_GRID_FILENAME, overwrite=True)
 
-	test_read : simpler_spectral_grid = simpler_spectral_grid.from_hdf5(SPECTRAL_GRID_FILENAME)
+	test_read : spectral_grid = spectral_grid.from_hdf5(SPECTRAL_GRID_FILENAME)
 
 
 
