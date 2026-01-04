@@ -1,6 +1,6 @@
 [project]
 name = "spots_and_faculae_model"
-version = "0.1.0"
+version = "0.0.0.dev0"
 description = ""
 authors = [
     {name = "BenBlueeeee",email = "benjaminleogreen@gmail.com"}
@@ -26,9 +26,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "spots_and_faculae_model", from = "src"},
-			{include = "phoenix_grid_creator", from = "src"},
-			{include = "facula_and_spot_creator", from = "src"},
+packages = [{include = "phoenix_grid_creator", from = "src"},
 			{include = "spectrum_component_analyser", from = "src"}]
 
 [build-system]

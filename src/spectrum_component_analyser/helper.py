@@ -1,8 +1,4 @@
 
-from itertools import product
-from pathlib import Path
-import astropy
-from astropy.table import QTable
 import numpy as np
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -11,15 +7,12 @@ from astropy.visualization import quantity_support
 quantity_support()
 from tqdm import tqdm
 import astropy.units as u
-from scipy.interpolate import interp1d
 from astropy.units import Quantity
 from joblib import Parallel, delayed
-import os
 from typing import Sequence, Tuple
 from scipy.optimize._optimize import OptimizeResult
 
 from spots_and_faculae_model.spectrum import spectrum
-from spots_and_faculae_model.readers import read_JWST_fits
 from spots_and_faculae_model.spectral_grid import spectral_grid
 
 # units should be stored in the astropy quantity anyway

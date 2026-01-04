@@ -99,7 +99,7 @@ def read_HARPS_fits(fits_absolute_path : Path, verbose : bool = False, name : st
 	with fits.open(fits_absolute_path) as hdul:
 		HDU_INDEX = 1 # aka EXTRACT1D
 		
-
+		
 		data = hdul[HDU_INDEX].data
 		hdr = hdul[HDU_INDEX].header
 		
