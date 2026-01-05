@@ -69,7 +69,11 @@ def read_JWST_fits_all_spectra(fits_absolute_path : Path, verbose : bool = False
 			# print("[SPECTRUM COMPONENT ANALYSER] : external spectrum found & loaded in")
 			# these column name strings are unique to JWST 1D 
 			spec : spectrum = spectrum(wavelengths = data["WAVELENGTH"][integration_index] * JWST_WAVELENGTH_UNITS,
-					fluxes = data["FLUX"][integration_index] * JWST_FLUX_UNITS, normalised_point=JWST_normalising_point, observational_resolution=JWST_resolution, name=name)
+					fluxes = data["FLUX"][integration_index] * JWST_FLUX_UNITS,
+					normalised_point=None, # this is an observational spectrum: no normalising or interpolation should be done on it
+					observational_resolution=None,
+					observational_wavelengths=None,
+					name=name)
 
 			if verbose:
 				hdul.info()
