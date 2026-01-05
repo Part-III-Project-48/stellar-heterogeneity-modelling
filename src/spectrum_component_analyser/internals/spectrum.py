@@ -67,38 +67,6 @@ class spectrum:
 		
 		self.Normalised_Point = normalised_point
 		self.Desired_Resolution = desired_resolution
-
-	# def __getitem__(self, idx):
-	# 	"""
-	# 	Allow slicing, indexing, and boolean masks.
-	# 	Returns a new spectrum with sliced wavelength and flux arrays.
-	# 	"""
-	# 	return spectrum(self.Wavelengths[idx], self.Fluxes[idx], name=self.Name, normalised_point=self.Normalised_Point, desired_resolution=self.Desired_Resolution)
-
-	def __len__(self):
-		if len(self.Wavelengths) != len(self.Fluxes):
-			raise ValueError("wavelengths and fluxes must have the same length. (Length is not well defined)")
-		
-		return len(self.Fluxes)
-	
-	def __iter__(self):
-		"""
-		pandas complains very hard when trying to print dataframes containing spectrum objects if we dont define our own iterator
-		"""
-		return iter(self.Fluxes)
-	
-	def __repr__(self):
-		unit = getattr(self.Fluxes, "unit", None)
-		return f"<spectrum name={self.Name} len={len(self)} unit={unit}>"
-
-	def __str__(self):
-		return self.__repr__()
-	
-	def plot(self):
-		plt.clf()
-		plt.title(f"Observational Spectrum for {self.Name}")
-		plt.plot(self.Wavelengths, self.Fluxes)
-		plt.show()
 	
 	def normalise_flux(self, normalised_point : Quantity):
 		"""
@@ -144,3 +112,35 @@ class spectrum:
 		this assumes that the hdf5 is in vacuum units; can easily check metadata of hdf5 file
 		"""
 		return specutils.utils.wcs_utils.vac_to_air(self.Wavelengths)
+	
+	# def __getitem__(self, idx):
+	# 	"""
+	# 	Allow slicing, indexing, and boolean masks.
+	# 	Returns a new spectrum with sliced wavelength and flux arrays.
+	# 	"""
+	# 	return spectrum(self.Wavelengths[idx], self.Fluxes[idx], name=self.Name, normalised_point=self.Normalised_Point, desired_resolution=self.Desired_Resolution)
+
+	def plot(self):
+		plt.clf()
+		plt.title(f"Observational Spectrum for {self.Name}")
+		plt.plot(self.Wavelengths, self.Fluxes)
+		plt.show()
+	
+	def __len__(self):
+		if len(self.Wavelengths) != len(self.Fluxes):
+			raise ValueError("wavelengths and fluxes must have the same length. (Length is not well defined)")
+		
+		return len(self.Fluxes)
+	
+	def __iter__(self):
+		"""
+		pandas complains very hard when trying to print dataframes containing spectrum objects if we dont define our own iterator
+		"""
+		return iter(self.Fluxes)
+	
+	def __repr__(self):
+		unit = getattr(self.Fluxes, "unit", None)
+		return f"<spectrum name={self.Name} len={len(self)} unit={unit}>"
+
+	def __str__(self):
+		return self.__repr__()
