@@ -11,14 +11,18 @@ from pathlib import Path
 # internal imports
 from spectrum_component_analyser.internals.spectral_grid import spectral_grid
 from spectrum_component_analyser.internals.spectrum import spectrum
-from src.spectrum_component_analyser.internals.readers import read_JWST_fits, read_HARPS_fits, JWST_resolution, HARPS_resolution, JWST_normalising_point, HARPS_normalising_point
+from spectrum_component_analyser.internals.readers import read_JWST_fits, read_HARPS_fits, JWST_resolution, HARPS_resolution, JWST_normalising_point, HARPS_normalising_point
 
-SPECTRAL_GRID_FILENAME : Path = Path("new_JWST_spectral_grid.hdf5")
+SPECTRAL_GRID_FILENAME : Path = Path("test_JWST_not_oversmoothed.hdf5")
 
 # data to request (these numbers have to be included in the PHOENIX dataset; view PHOENIX_filename_conventions.py for which are allowed)
 T_effs = np.arange(2300, 4001, 100) * u.K
 FeHs = np.array([-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1])
 log_gs = np.arange(0, 6.1, 0.5)
+
+# test values
+# T_effs = [2300] * u.K
+# FeHs = np.array([0])
 
 # # # flags # # #
 
@@ -52,13 +56,14 @@ if __name__ == "__main__":
 
 	spectrum_to_decompose : spectrum = read_JWST_fits(wavelength_grid_absolute_path)
 
-	spec_grid : spectral_grid = spectral_grid.from_internet(T_effs,
-														 FeHs,
-														 log_gs,
-														 observational_wavelengths=spectrum_to_decompose.Wavelengths,
+	spec_grid : spectral_grid = spectral_grid.from_internet(T_effs=T_effs,
+														 FeHs=FeHs,
+														 log_gs=log_gs,
 														 normalising_point=JWST_normalising_point,
-														 observational_resolution=HARPS_resolution)
+														 observational_resolution=JWST_resolution,
+														 observational_wavelengths=spectrum_to_decompose.Wavelengths,
+														 name="phoenix_data")
 
-	spec_grid.save(absolute_path=SPECTRAL_GRID_FILENAME, overwrite=False)
+	spec_grid.save(absolute_path=SPECTRAL_GRID_FILENAME, overwrite=True)
 
 	test_read : spectral_grid = spectral_grid.from_hdf5(SPECTRAL_GRID_FILENAME)

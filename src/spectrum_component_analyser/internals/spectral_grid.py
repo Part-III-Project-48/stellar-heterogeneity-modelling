@@ -44,7 +44,7 @@ def get_wavelength_grid() -> Sequence[Quantity]:
 	# read in the wavelength (1D) grid so we can save this into our mega-grid correctly
 
 	script_dir = Path(__file__).resolve().parent
-	WAVELENGTH_GRID_RELATIVE_PATH = Path("../../assets/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits")
+	WAVELENGTH_GRID_RELATIVE_PATH = Path("../../../calibration_files/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits")
 	wavelength_grid_absolute_path = (script_dir / WAVELENGTH_GRID_RELATIVE_PATH).resolve()
 
 	if not wavelength_grid_absolute_path.exists():
@@ -61,7 +61,16 @@ def get_wavelength_grid() -> Sequence[Quantity]:
 
 	return wavelengths
 		
-def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wavelengths : np.array, normalising_point : Quantity, observational_resolution : Quantity, observational_wavelengths : np.array) -> phoenix_spectrum:
+def download_spectrum(T_eff,
+					  FeH,
+					  log_g,
+					  lte : bool,
+					  alphaM : float,
+					  phoenix_wavelengths : np.array,
+					  normalising_point : Quantity,
+					  observational_resolution : Quantity,
+					  observational_wavelengths : np.ndarray,
+					  name : str) -> phoenix_spectrum:
 	"""
 	we'll use this function to parallelise getting the spectra
 
@@ -100,7 +109,8 @@ def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wav
 			log_g=log_g,
 			normalising_point=normalising_point,
 			observational_resolution=observational_resolution,
-			observational_wavelengths=observational_wavelengths)
+			observational_wavelengths=observational_wavelengths,
+			name=name)
 
 		return spec
 
@@ -108,7 +118,14 @@ class spectral_grid():
 	"""
 	this is an internal class really: its much more human readable to just use list[spectrum]; this is just for saving to / loading from a hdf5 file
 	"""
-	def __init__(self, wavelengths : Sequence[Quantity], t_effs : Sequence[Quantity], fehs : Sequence[Quantity], log_gs : Sequence[Quantity], fluxes : Sequence[Quantity], uses_regularised_wavelengths : bool, uses_regularised_temperatures : bool):
+	def __init__(self,
+			  wavelengths : Sequence[Quantity],
+			  t_effs : Sequence[Quantity],
+			  fehs : Sequence[Quantity],
+			  log_gs : Sequence[Quantity],
+			  fluxes : Sequence[Quantity],
+			  uses_regularised_wavelengths : bool,
+			  uses_regularised_temperatures : bool):
 		"""
 		don't use this init: use the other wrappers that download things or load in from a hdf5 file
 		(the structure of fluxes is non trivial)
@@ -127,7 +144,18 @@ class spectral_grid():
 		self.Uses_Regularised_Temperatures = uses_regularised_temperatures
 
 	@classmethod
-	def from_internet(cls, T_effs, FeHs, log_gs, normalising_point : Quantity, observational_resolution : Quantity, observational_wavelengths = None, alphaM = 0, lte = True, regularised_temperatures : Sequence[Quantity] = None):
+	def from_internet(cls,
+				   T_effs,
+				   FeHs,
+				   log_gs,
+				   normalising_point : Quantity,
+				   observational_resolution : Quantity,
+				   observational_wavelengths : np.ndarray,
+				   name : str,
+				   alphaM = 0,
+				   lte = True,
+				   regularised_temperatures : Sequence[Quantity] = None,
+				   parallelise : bool = True):
 		"""
 		seems like the only data I can find is LTE data (?)
 		"""
@@ -146,7 +174,8 @@ class spectral_grid():
 											   phoenix_wavelengths,
 											   normalising_point=normalising_point,
 											   observational_resolution=observational_resolution,
-											   observational_wavelengths=observational_wavelengths)
+											   observational_wavelengths=observational_wavelengths,
+											   name=f"{name}_Teff-{T_eff}_FeH-{FeH}_logg-{log_g}")
 			return i, j, k, spec
 		
 			
@@ -157,9 +186,16 @@ class spectral_grid():
 			for k, g in enumerate(log_gs)
 		]
 
-		results = Parallel(n_jobs=-1, prefer="threads")(
-			delayed(fetch_spectra_and_indices)(*task) for task in tqdm(tasks, desc="downloading spectra...")
-		)
+		if parallelise:
+			results = Parallel(n_jobs=-1, prefer="threads")(
+				delayed(fetch_spectra_and_indices)(*task) for task in tqdm(tasks, desc="downloading spectra...")
+			)
+		else:
+			results = [
+				fetch_spectra_and_indices(*task)
+				for task in tqdm(tasks, desc="downloading spectra...")
+			]
+
 
 		_, _, _, example_spec = results[0]
 		
@@ -172,7 +208,13 @@ class spectral_grid():
 			fluxes[i, j, k, :] = spec.Fluxes
 
 		# assume all spectra have the same wavelengths
-		return cls(spec.Wavelengths, T_effs, FeHs, log_gs, fluxes, observational_wavelengths != None, regularised_temperatures != None)
+		return cls(spec.Wavelengths,
+			 T_effs,
+			 FeHs,
+			 log_gs,
+			 fluxes,
+			 observational_wavelengths != None,
+			 regularised_temperatures != None)
 
 	def save(self, absolute_path : Path, overwrite : bool):
 		if absolute_path.exists() and not overwrite:

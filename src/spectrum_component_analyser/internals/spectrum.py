@@ -64,8 +64,8 @@ class spectrum:
 
 		# sample onto a set of wavelengths (for an instrument at observational_resolution)
 		if observational_wavelengths != None:
-			self.Wavelengths = observational_wavelengths
 			self.Fluxes = np.interp(observational_wavelengths, self.Wavelengths, self.Fluxes) # new = np.interp(new | old | old)
+			self.Wavelengths = observational_wavelengths
 		
 		self.Normalised_Point = normalised_point
 		self.Desired_Resolution = observational_resolution
@@ -76,6 +76,8 @@ class spectrum:
 
 		normalised_point : an astropy quantity with dimension of length
 		"""
+		if (u.get_physical_type(self.Fluxes[0].unit) != u.get_physical_type(u.Jy)):
+			raise ValueError(f"fluxes are in units of {self.Fluxes.unit}. this is not in a unit convertible to janskys. no normalisation will be carried out.")
 
 		self.Fluxes /= self.Fluxes[(normalised_point <= self.Wavelengths)][0].value
 	
@@ -101,9 +103,11 @@ class spectrum:
 
 		# resample onto desired wavelengths
 		desired_number_of_wavelength_points = (self.Wavelengths.max() - self.Wavelengths.min()) / desired_resolution
+		desired_number_of_wavelength_points = int(desired_number_of_wavelength_points.to(u.dimensionless_unscaled).value) # otherwise it prints as e.g. [number] angstrom / um. also need to convert it to an integer value for python
 		wave_desired_resolution = np.linspace(self.Wavelengths.min(), self.Wavelengths.max(), desired_number_of_wavelength_points)
 
 		new_flux = np.interp(wave_desired_resolution, wave_uniform, convolved_flux)
+		new_flux *= DEFAULT_FLUX_UNIT
 
 		self.Wavelengths = wave_desired_resolution
 		self.Fluxes = new_flux
