@@ -24,7 +24,7 @@ WAVELENGTH_COLUMN = "wavelength / angstroms"
 FLUX_COLUMN = "flux / erg / (s * cm**2 * cm)"
 SPECTRUM_COLUMN : str = "spectrum object"
 
-def calc_result(parameter_space, lookup_table, spec_grid : spectral_grid, mask, spectrum_to_decompose, total_number_of_components : int = None, verbose : bool = True) -> Tuple[np.ndarray, OptimizeResult]:
+def calc_fitted_spectrum(parameter_space, lookup_table, spec_grid : spectral_grid, mask, spectrum_to_decompose, total_number_of_components : int = None, verbose : bool = True) -> Tuple[np.ndarray, OptimizeResult]:
     A = np.empty((0, 0))
 
     def force_to_janskys(T_eff : Quantity, FeH : Quantity, log_g : Quantity, wavelengths : Sequence[Quantity], mask):
