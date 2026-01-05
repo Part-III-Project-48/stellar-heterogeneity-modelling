@@ -11,9 +11,9 @@ from pathlib import Path
 # internal imports
 from spectrum_component_analyser.internals.spectral_grid import spectral_grid
 from spectrum_component_analyser.internals.spectrum import spectrum
-from src.spectrum_component_analyser.internals.readers import read_JWST_fits, read_HARPS_fits, JWST_resolution, HARPS_resolution, HARPS_normalising_point
+from src.spectrum_component_analyser.internals.readers import read_JWST_fits, read_HARPS_fits, JWST_resolution, HARPS_resolution, JWST_normalising_point, HARPS_normalising_point
 
-SPECTRAL_GRID_FILENAME : Path = Path("spectral_grid.hdf5")
+SPECTRAL_GRID_FILENAME : Path = Path("new_JWST_spectral_grid.hdf5")
 
 # data to request (these numbers have to be included in the PHOENIX dataset; view PHOENIX_filename_conventions.py for which are allowed)
 T_effs = np.arange(2300, 4001, 100) * u.K
@@ -46,14 +46,19 @@ regularised_temperatures = np.arange(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KEL
 if __name__ == "__main__":
 
 	# load in a spectrum and use that as the regularised wavelengths
-	external_spectrum_path = Path("../../assets/ADP.2016-02-04T01_02_52.843.fits")
+	external_spectrum_path = Path("../../observed_spectra/MAST_2025-10-26T08_10_09.071Z - K2-18/MAST_2025-10-26T08_10_09.071Z/JWST/jw02722003001_04101_00001-seg001_nis_x1dints.fits")
 	script_dir = Path(__file__).resolve().parent
 	wavelength_grid_absolute_path = (script_dir / external_spectrum_path).resolve()
 
-	spectrum_to_decompose : spectrum = read_HARPS_fits(wavelength_grid_absolute_path)
+	spectrum_to_decompose : spectrum = read_JWST_fits(wavelength_grid_absolute_path)
 
-	spec_grid : spectral_grid = spectral_grid.from_internet(T_effs, FeHs, log_gs, observational_wavelengths=spectrum_to_decompose.Wavelengths, resolution_to_convolve_with=HARPS_resolution, normalising_point=HARPS_normalising_point, desired_resolution=HARPS_resolution)
+	spec_grid : spectral_grid = spectral_grid.from_internet(T_effs,
+														 FeHs,
+														 log_gs,
+														 observational_wavelengths=spectrum_to_decompose.Wavelengths,
+														 normalising_point=JWST_normalising_point,
+														 observational_resolution=HARPS_resolution)
 
-	spec_grid.save(absolute_path=SPECTRAL_GRID_FILENAME, overwrite=True)
+	spec_grid.save(absolute_path=SPECTRAL_GRID_FILENAME, overwrite=False)
 
 	test_read : spectral_grid = spectral_grid.from_hdf5(SPECTRAL_GRID_FILENAME)

@@ -34,7 +34,11 @@ def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str
 		
 		# these column name strings are unique to JWST 1D 
 		spec : spectrum = spectrum(wavelengths = data["WAVELENGTH"][INTEGRATION_INDEX] * JWST_WAVELENGTH_UNITS,
-				  fluxes = data["FLUX"][INTEGRATION_INDEX] * JWST_FLUX_UNITS, name=name, normalised_point = JWST_normalising_point, observational_resolution=JWST_resolution)
+				  fluxes = data["FLUX"][INTEGRATION_INDEX] * JWST_FLUX_UNITS,
+				  name=name,
+				  normalised_point = JWST_normalising_point,
+				  observational_resolution=None, # this is an observational spectrum (as we are reading in a JWST fits file) - so no convolution or resampling is necessary
+				  observational_wavelengths=None)
 
 		if verbose:
 			hdul.info()

@@ -127,7 +127,7 @@ class spectral_grid():
 		self.Uses_Regularised_Temperatures = uses_regularised_temperatures
 
 	@classmethod
-	def from_internet(cls, T_effs, FeHs, log_gs, normalising_point : Quantity, desired_resolution : Quantity, observational_wavelengths = None, alphaM = 0, lte = True, regularised_temperatures : Sequence[Quantity] = None, resolution_to_convolve_with : Quantity = None):
+	def from_internet(cls, T_effs, FeHs, log_gs, normalising_point : Quantity, observational_resolution : Quantity, observational_wavelengths = None, alphaM = 0, lte = True, regularised_temperatures : Sequence[Quantity] = None):
 		"""
 		seems like the only data I can find is LTE data (?)
 		"""
@@ -138,7 +138,15 @@ class spectral_grid():
 		phoenix_wavelengths = get_wavelength_grid()
 		
 		def fetch_spectra_and_indices(i, j, k, T_eff, FeH, log_g):
-			spec : phoenix_spectrum = download_spectrum(T_eff, FeH, log_g, lte, alphaM, phoenix_wavelengths, normalising_point, desired_resolution, observational_wavelengths=observational_wavelengths, resolution_to_convolve_with=resolution_to_convolve_with)
+			spec : phoenix_spectrum = download_spectrum(T_eff,
+											   FeH,
+											   log_g,
+											   lte,
+											   alphaM,
+											   phoenix_wavelengths,
+											   normalising_point=normalising_point,
+											   observational_resolution=observational_resolution,
+											   observational_wavelengths=observational_wavelengths)
 			return i, j, k, spec
 		
 			

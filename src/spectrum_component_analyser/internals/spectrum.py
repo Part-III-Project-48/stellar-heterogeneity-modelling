@@ -55,12 +55,14 @@ class spectrum:
 		self.Fluxes : np.array = fluxes_janskys[indices]
 		self.Name : str = name
 
+		# downsample to a given resolution using a gaussian convolution // filter
 		if observational_resolution != None:
 			self.regrid_flux(desired_resolution=observational_resolution)
-
+		
 		if normalised_point != None:
 			self.normalise_flux(normalised_point)
 
+		# sample onto a set of wavelengths (for an instrument at observational_resolution)
 		if observational_wavelengths != None:
 			self.Wavelengths = observational_wavelengths
 			self.Fluxes = np.interp(observational_wavelengths, self.Wavelengths, self.Fluxes) # new = np.interp(new | old | old)
@@ -87,7 +89,7 @@ class spectrum:
 		if (u.get_physical_type(self.Fluxes[0].unit) != u.get_physical_type(u.Jy)):
 			raise ValueError(f"fluxes are in units of {self.Fluxes.unit}. this is not in a unit convertible to janskys. no normalisation will be carried out.")
 		
-		# interpolate ontoa uniform wavelength grid - self.Wavelengths & self.Fluxes are assumed to currently be very high res
+		# interpolate onto a uniform wavelength grid - self.Wavelengths & self.Fluxes are assumed to currently be very high res
 		wave_uniform = np.linspace(self.Wavelengths.min(), self.Wavelengths.max(), len(self.Wavelengths))
 		flux_uniform = np.interp(wave_uniform, self.Wavelengths, self.Fluxes)
 
@@ -113,12 +115,17 @@ class spectrum:
 		"""
 		return specutils.utils.wcs_utils.vac_to_air(self.Wavelengths)
 	
-	# def __getitem__(self, idx):
-	# 	"""
-	# 	Allow slicing, indexing, and boolean masks.
-	# 	Returns a new spectrum with sliced wavelength and flux arrays.
-	# 	"""
-	# 	return spectrum(self.Wavelengths[idx], self.Fluxes[idx], name=self.Name, normalised_point=self.Normalised_Point, desired_resolution=self.Desired_Resolution)
+	def __getitem__(self, idx):
+		"""
+		Allow slicing, indexing, and boolean masks.
+		Returns a new spectrum with sliced wavelength and flux arrays.
+		"""
+		return spectrum(self.Wavelengths[idx],
+				  self.Fluxes[idx],
+				  name=self.Name,
+				  normalised_point=None,
+				  observational_resolution=None,
+				  observational_wavelengths=None) # no extra convolution or resampling is done on sliced spectra; we assume the fluxes and wavelengths are already as desired
 
 	def plot(self):
 		plt.clf()
