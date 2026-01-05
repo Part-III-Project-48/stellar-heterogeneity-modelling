@@ -56,12 +56,12 @@ def calc_result(parameter_space, lookup_table, spec_grid : spectral_grid, mask, 
     return A, result
 
 def get_optimality(A, result, spectrum_to_decompose : spectrum):
-    determined_spectrum = spectrum(spectrum_to_decompose.Wavelengths, A @ result.x, normalised_point=None, smoothing_range=None, normalise_flux=False)
+    determined_spectrum = spectrum(spectrum_to_decompose.Wavelengths, A @ result.x, normalised_point=None, desired_resolution=None, normalise_flux=False)
     residual = (determined_spectrum.Fluxes - spectrum_to_decompose.Fluxes) / spectrum_to_decompose.Fluxes
-    rmse = np.sqrt(np.mean(residual**2))
-    rss  = np.sum(residual**2)
+    residual_mean_squared_error = np.sqrt(np.mean(residual**2))
+    residual_sum_of_squares  = np.sum(residual**2)
 
-    return rmse, rss
+    return residual_mean_squared_error, residual_sum_of_squares
 
 
 # # # plot some data # # #
