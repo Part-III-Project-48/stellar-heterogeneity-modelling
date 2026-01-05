@@ -61,7 +61,7 @@ def get_wavelength_grid() -> Sequence[Quantity]:
 
 	return wavelengths
 		
-def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wavelengths : np.array, normalising_point : Quantity, desired_resolution : Quantity, regularised_wavelengths : np.array = None, resolution_to_convolve_with : Quantity = None) -> phoenix_spectrum:
+def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wavelengths : np.array, normalising_point : Quantity, observational_resolution : Quantity, observational_wavelengths : np.array) -> phoenix_spectrum:
 	"""
 	we'll use this function to parallelise getting the spectra
 
@@ -91,26 +91,16 @@ def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wav
 		fluxes = fluxes.byteswap().view(fluxes.dtype.newbyteorder())
 		fluxes *= PHOENIX_FLUX_UNITS
 
-		if regularised_wavelengths != None:
-			spec = phoenix_spectrum(
-				wavelengths=regularised_wavelengths,
-				fluxes = np.interp(regularised_wavelengths, phoenix_wavelengths, fluxes),
-				t_eff=T_eff,
-				feh=FeH,
-				log_g=log_g,
-				normalising_point=normalising_point,
-				desired_resolution=desired_resolution)
-		else:
-			raise NotImplementedError("downloading a spectrum and using it at full resolution is not implemented.")
-			spec = phoenix_spectrum(
-					wavelengths=phoenix_wavelengths,
-					fluxes=fluxes,
-					t_eff=T_eff,
-					feh=FeH,
-					log_g=log_g,
-					normalising_point=None, # bodge
-					desired_resolution=None,
-					normalise_flux = False) # when using the original phoenix wavelength grid, this takes ages to normalise. so just save it unnormalised for now
+		# interpolation onto observational // physical wavelengths is done by the internals.
+		spec = phoenix_spectrum(
+			wavelengths=phoenix_wavelengths,
+			fluxes=fluxes,
+			t_eff=T_eff,
+			feh=FeH,
+			log_g=log_g,
+			normalising_point=normalising_point,
+			observational_resolution=observational_resolution,
+			observational_wavelengths=observational_wavelengths)
 
 		return spec
 
@@ -137,7 +127,7 @@ class spectral_grid():
 		self.Uses_Regularised_Temperatures = uses_regularised_temperatures
 
 	@classmethod
-	def from_internet(cls, T_effs, FeHs, log_gs, normalising_point : Quantity, desired_resolution : Quantity, regularised_wavelengths = None, alphaM = 0, lte = True, regularised_temperatures : Sequence[Quantity] = None, resolution_to_convolve_with : Quantity = None):
+	def from_internet(cls, T_effs, FeHs, log_gs, normalising_point : Quantity, desired_resolution : Quantity, observational_wavelengths = None, alphaM = 0, lte = True, regularised_temperatures : Sequence[Quantity] = None, resolution_to_convolve_with : Quantity = None):
 		"""
 		seems like the only data I can find is LTE data (?)
 		"""
@@ -148,7 +138,7 @@ class spectral_grid():
 		phoenix_wavelengths = get_wavelength_grid()
 		
 		def fetch_spectra_and_indices(i, j, k, T_eff, FeH, log_g):
-			spec : phoenix_spectrum = download_spectrum(T_eff, FeH, log_g, lte, alphaM, phoenix_wavelengths, normalising_point, desired_resolution, regularised_wavelengths, resolution_to_convolve_with=resolution_to_convolve_with)
+			spec : phoenix_spectrum = download_spectrum(T_eff, FeH, log_g, lte, alphaM, phoenix_wavelengths, normalising_point, desired_resolution, observational_wavelengths=observational_wavelengths, resolution_to_convolve_with=resolution_to_convolve_with)
 			return i, j, k, spec
 		
 			
@@ -174,7 +164,7 @@ class spectral_grid():
 			fluxes[i, j, k, :] = spec.Fluxes
 
 		# assume all spectra have the same wavelengths
-		return cls(spec.Wavelengths, T_effs, FeHs, log_gs, fluxes, regularised_wavelengths != None, regularised_temperatures != None)
+		return cls(spec.Wavelengths, T_effs, FeHs, log_gs, fluxes, observational_wavelengths != None, regularised_temperatures != None)
 
 	def save(self, absolute_path : Path, overwrite : bool):
 		if absolute_path.exists() and not overwrite:

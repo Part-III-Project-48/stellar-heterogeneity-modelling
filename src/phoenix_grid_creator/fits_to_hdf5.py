@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
 	spectrum_to_decompose : spectrum = read_HARPS_fits(wavelength_grid_absolute_path)
 
-	spec_grid : spectral_grid = spectral_grid.from_internet(T_effs, FeHs, log_gs, regularised_wavelengths=spectrum_to_decompose.Wavelengths, resolution_to_convolve_with=HARPS_resolution, normalising_point=HARPS_normalising_point, desired_resolution=HARPS_resolution)
+	spec_grid : spectral_grid = spectral_grid.from_internet(T_effs, FeHs, log_gs, observational_wavelengths=spectrum_to_decompose.Wavelengths, resolution_to_convolve_with=HARPS_resolution, normalising_point=HARPS_normalising_point, desired_resolution=HARPS_resolution)
 
 	spec_grid.save(absolute_path=SPECTRAL_GRID_FILENAME, overwrite=True)
 

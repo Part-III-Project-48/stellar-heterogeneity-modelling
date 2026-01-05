@@ -20,7 +20,7 @@ from scipy.ndimage import gaussian_filter1d
 DEFAULT_FLUX_UNIT = u.Jy
 
 class spectrum:
-	def __init__(self, wavelengths : np.array, fluxes : np.array, normalised_point : Quantity, desired_resolution : Quantity, output_wavelengths : np.ndarray, name : str = None):
+	def __init__(self, wavelengths : np.array, fluxes : np.array, normalised_point : Quantity, observational_resolution : Quantity, observational_wavelengths : np.ndarray, name : str = None):
 		"""
 		Flux is going to be stored in Janskys from now on
 
@@ -55,18 +55,18 @@ class spectrum:
 		self.Fluxes : np.array = fluxes_janskys[indices]
 		self.Name : str = name
 
-		if desired_resolution != None:
-			self.regrid_flux(desired_resolution=desired_resolution)
+		if observational_resolution != None:
+			self.regrid_flux(desired_resolution=observational_resolution)
 
 		if normalised_point != None:
 			self.normalise_flux(normalised_point)
 
-		if output_wavelengths != None:
-			self.Wavelengths = output_wavelengths
-			self.Fluxes = np.interp(output_wavelengths, self.Wavelengths, self.Fluxes) # new = np.interp(new | old | old)
+		if observational_wavelengths != None:
+			self.Wavelengths = observational_wavelengths
+			self.Fluxes = np.interp(observational_wavelengths, self.Wavelengths, self.Fluxes) # new = np.interp(new | old | old)
 		
 		self.Normalised_Point = normalised_point
-		self.Desired_Resolution = desired_resolution
+		self.Desired_Resolution = observational_resolution
 	
 	def normalise_flux(self, normalised_point : Quantity):
 		"""
