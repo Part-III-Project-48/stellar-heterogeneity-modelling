@@ -14,7 +14,7 @@ JWST_FLUX_UNITS : Unit = u.MJy
 JWST_resolution = .001 * u.um
 
 JWST_normalising_point = 2.2 * u.um
-JWST_smoothing_range = 0.5 * u.um
+# JWST_smoothing_range = 0.5 * u.um
 
 
 def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str = None, INTEGRATION_INDEX : int = 0) -> spectrum:
@@ -34,7 +34,11 @@ def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str
 		
 		# these column name strings are unique to JWST 1D 
 		spec : spectrum = spectrum(wavelengths = data["WAVELENGTH"][INTEGRATION_INDEX] * JWST_WAVELENGTH_UNITS,
-				  fluxes = data["FLUX"][INTEGRATION_INDEX] * JWST_FLUX_UNITS, name=name, normalised_point = JWST_normalising_point, smoothing_range=JWST_smoothing_range)
+				  fluxes = data["FLUX"][INTEGRATION_INDEX] * JWST_FLUX_UNITS,
+				  name=name,
+				  normalised_point = JWST_normalising_point,
+				  observational_resolution=None, # this is an observational spectrum (as we are reading in a JWST fits file) - so no convolution or resampling is necessary
+				  observational_wavelengths=None)
 
 		if verbose:
 			hdul.info()
@@ -65,7 +69,7 @@ def read_JWST_fits_all_spectra(fits_absolute_path : Path, verbose : bool = False
 			# print("[SPECTRUM COMPONENT ANALYSER] : external spectrum found & loaded in")
 			# these column name strings are unique to JWST 1D 
 			spec : spectrum = spectrum(wavelengths = data["WAVELENGTH"][integration_index] * JWST_WAVELENGTH_UNITS,
-					fluxes = data["FLUX"][integration_index] * JWST_FLUX_UNITS, normalised_point=JWST_normalising_point, smoothing_range=JWST_smoothing_range, name=name)
+					fluxes = data["FLUX"][integration_index] * JWST_FLUX_UNITS, normalised_point=JWST_normalising_point, observational_resolution=JWST_resolution, name=name)
 
 			if verbose:
 				hdul.info()
@@ -82,7 +86,7 @@ HARPS_FLUX_UNITS : Unit = u.MJy
 HARPS_resolution = 50 * u.Angstrom
 
 HARPS_normalising_point = 5000 * u.Angstrom
-HARPS_smoothing_range = 50 * u.um
+# HARPS_smoothing_range = 50 * u.um
 
 from astropy.units import Quantity
 
@@ -109,7 +113,7 @@ def read_HARPS_fits(fits_absolute_path : Path, verbose : bool = False, name : st
 
 		# these column name strings are unique to JWST 1D 
 		spec : spectrum = spectrum(wavelengths = data["WAVE"][INTEGRATION_INDEX] * HARPS_WAVELENGTH_UNITS,
-				  fluxes = data["FLUX"][INTEGRATION_INDEX] * HARPS_FLUX_UNITS, name=name, normalised_point=HARPS_normalising_point, smoothing_range=HARPS_smoothing_range, normalise_flux=True)
+				  fluxes = data["FLUX"][INTEGRATION_INDEX] * HARPS_FLUX_UNITS, name=name, normalised_point=HARPS_normalising_point, observational_resolution=HARPS_resolution, normalise_flux=True)
 		
 	return spec
 

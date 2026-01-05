@@ -9,16 +9,20 @@ from astropy import units as u
 from pathlib import Path
 
 # internal imports
-from spots_and_faculae_model.spectral_grid import spectral_grid
-from spots_and_faculae_model.spectrum import spectrum
-from src.spectrum_component_analyser.internals.readers import read_JWST_fits, read_HARPS_fits, JWST_resolution, HARPS_resolution, HARPS_normalising_point, HARPS_smoothing_range
+from spectrum_component_analyser.internals.spectral_grid import spectral_grid
+from spectrum_component_analyser.internals.spectrum import spectrum
+from spectrum_component_analyser.internals.readers import read_JWST_fits, read_HARPS_fits, JWST_resolution, HARPS_resolution, JWST_normalising_point, HARPS_normalising_point
 
-SPECTRAL_GRID_FILENAME : Path = Path("spectral_grid.hdf5")
+SPECTRAL_GRID_FILENAME : Path = Path("test_JWST_not_oversmoothed.hdf5")
 
 # data to request (these numbers have to be included in the PHOENIX dataset; view PHOENIX_filename_conventions.py for which are allowed)
 T_effs = np.arange(2300, 4001, 100) * u.K
 FeHs = np.array([-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1])
 log_gs = np.arange(0, 6.1, 0.5)
+
+# test values
+# T_effs = [2300] * u.K
+# FeHs = np.array([0])
 
 # # # flags # # #
 
@@ -46,13 +50,19 @@ regularised_temperatures = np.arange(MIN_TEMPERATURE_KELVIN, MAX_TEMPERATURE_KEL
 if __name__ == "__main__":
 
 	# load in a spectrum and use that as the regularised wavelengths
-	external_spectrum_path = Path("../../assets/ADP.2016-02-04T01_02_52.843.fits")
+	external_spectrum_path = Path("../../observed_spectra/MAST_2025-10-26T08_10_09.071Z - K2-18/MAST_2025-10-26T08_10_09.071Z/JWST/jw02722003001_04101_00001-seg001_nis_x1dints.fits")
 	script_dir = Path(__file__).resolve().parent
 	wavelength_grid_absolute_path = (script_dir / external_spectrum_path).resolve()
 
-	spectrum_to_decompose : spectrum = read_HARPS_fits(wavelength_grid_absolute_path)
+	spectrum_to_decompose : spectrum = read_JWST_fits(wavelength_grid_absolute_path)
 
-	spec_grid : spectral_grid = spectral_grid.from_internet(T_effs, FeHs, log_gs, regularised_wavelengths=spectrum_to_decompose.Wavelengths, resolution_to_convolve_with=HARPS_resolution, normalising_point=HARPS_normalising_point, smoothing_range=HARPS_smoothing_range)
+	spec_grid : spectral_grid = spectral_grid.from_internet(T_effs=T_effs,
+														 FeHs=FeHs,
+														 log_gs=log_gs,
+														 normalising_point=JWST_normalising_point,
+														 observational_resolution=JWST_resolution,
+														 observational_wavelengths=spectrum_to_decompose.Wavelengths,
+														 name="phoenix_data")
 
 	spec_grid.save(absolute_path=SPECTRAL_GRID_FILENAME, overwrite=True)
 

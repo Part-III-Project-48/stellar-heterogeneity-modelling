@@ -81,3 +81,6 @@ or just use higher res spectra lmao
 or use a different minimiser like Harris suggested
 
 looks like the medfilt is smoothing out the phoenix spectra far too much for the HARPS wavelengths, maybe wanna check that somehow
+
+we should be saving to spectral_grids data that is convolved to a given resolution (to save space)
+then normalising it when we read it in?

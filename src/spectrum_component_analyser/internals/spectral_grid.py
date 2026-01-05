@@ -44,7 +44,7 @@ def get_wavelength_grid() -> Sequence[Quantity]:
 	# read in the wavelength (1D) grid so we can save this into our mega-grid correctly
 
 	script_dir = Path(__file__).resolve().parent
-	WAVELENGTH_GRID_RELATIVE_PATH = Path("../../assets/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits")
+	WAVELENGTH_GRID_RELATIVE_PATH = Path("../../../calibration_files/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits")
 	wavelength_grid_absolute_path = (script_dir / WAVELENGTH_GRID_RELATIVE_PATH).resolve()
 
 	if not wavelength_grid_absolute_path.exists():
@@ -61,7 +61,16 @@ def get_wavelength_grid() -> Sequence[Quantity]:
 
 	return wavelengths
 		
-def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wavelengths : np.array, normalising_point : Quantity, smoothing_range : Quantity, regularised_wavelengths : np.array = None, resolution_to_convolve_with : Quantity = None) -> phoenix_spectrum:
+def download_spectrum(T_eff,
+					  FeH,
+					  log_g,
+					  lte : bool,
+					  alphaM : float,
+					  phoenix_wavelengths : np.array,
+					  normalising_point : Quantity,
+					  observational_resolution : Quantity,
+					  observational_wavelengths : np.ndarray,
+					  name : str) -> phoenix_spectrum:
 	"""
 	we'll use this function to parallelise getting the spectra
 
@@ -86,37 +95,22 @@ def download_spectrum(T_eff, FeH, log_g, lte : bool, alphaM : float, phoenix_wav
 	SPECTRA_HDU_INDEX = 0
 
 	with fits.open(BytesIO(response.content)) as hdul:
-		# hdul.info()
-		
-		fluxes = hdul[SPECTRA_HDU_INDEX].data
-
 		# for some reason, the fits file is big-endian; pandas required little-endian
+		fluxes = hdul[SPECTRA_HDU_INDEX].data
 		fluxes = fluxes.byteswap().view(fluxes.dtype.newbyteorder())
 		fluxes *= PHOENIX_FLUX_UNITS
 
-		if regularised_wavelengths != None:
-			index_per_wavelength = len(phoenix_wavelengths) / (np.max(phoenix_wavelengths) - np.min(phoenix_wavelengths))
-			index_per_wavelength = index_per_wavelength.to(u.um**-1)
-			convolution_range = int((index_per_wavelength * resolution_to_convolve_with)) # in number of adjacent points to consider
-			fluxes = sp.ndimage.gaussian_filter(fluxes, convolution_range) * fluxes.unit # gaussian_filter seems to remove units
-			spec = phoenix_spectrum(
-				wavelengths=regularised_wavelengths,
-				fluxes = np.interp(regularised_wavelengths, phoenix_wavelengths, fluxes),
-				t_eff=T_eff,
-				feh=FeH,
-				log_g=log_g,
-				normalising_point=normalising_point,
-				smoothing_range=smoothing_range)
-		else:
-			spec = phoenix_spectrum(
-					wavelengths=phoenix_wavelengths,
-					fluxes=fluxes,
-					t_eff=T_eff,
-					feh=FeH,
-					log_g=log_g,
-					normalising_point=None, # bodge
-					smoothing_range=None,
-					normalise_flux = False) # when using the original phoenix wavelength grid, this takes ages to normalise. so just save it unnormalised for now
+		# interpolation onto observational // physical wavelengths is done by the internals.
+		spec = phoenix_spectrum(
+			wavelengths=phoenix_wavelengths,
+			fluxes=fluxes,
+			t_eff=T_eff,
+			feh=FeH,
+			log_g=log_g,
+			normalising_point=normalising_point,
+			observational_resolution=observational_resolution,
+			observational_wavelengths=observational_wavelengths,
+			name=name)
 
 		return spec
 
@@ -124,7 +118,14 @@ class spectral_grid():
 	"""
 	this is an internal class really: its much more human readable to just use list[spectrum]; this is just for saving to / loading from a hdf5 file
 	"""
-	def __init__(self, wavelengths : Sequence[Quantity], t_effs : Sequence[Quantity], fehs : Sequence[Quantity], log_gs : Sequence[Quantity], fluxes : Sequence[Quantity], uses_regularised_wavelengths : bool, uses_regularised_temperatures : bool):
+	def __init__(self,
+			  wavelengths : Sequence[Quantity],
+			  t_effs : Sequence[Quantity],
+			  fehs : Sequence[Quantity],
+			  log_gs : Sequence[Quantity],
+			  fluxes : Sequence[Quantity],
+			  uses_regularised_wavelengths : bool,
+			  uses_regularised_temperatures : bool):
 		"""
 		don't use this init: use the other wrappers that download things or load in from a hdf5 file
 		(the structure of fluxes is non trivial)
@@ -143,7 +144,18 @@ class spectral_grid():
 		self.Uses_Regularised_Temperatures = uses_regularised_temperatures
 
 	@classmethod
-	def from_internet(cls, T_effs, FeHs, log_gs, normalising_point : Quantity, smoothing_range : Quantity, regularised_wavelengths = None, alphaM = 0, lte = True, regularised_temperatures : Sequence[Quantity] = None, resolution_to_convolve_with : Quantity = None):
+	def from_internet(cls,
+				   T_effs,
+				   FeHs,
+				   log_gs,
+				   normalising_point : Quantity,
+				   observational_resolution : Quantity,
+				   observational_wavelengths : np.ndarray,
+				   name : str,
+				   alphaM = 0,
+				   lte = True,
+				   regularised_temperatures : Sequence[Quantity] = None,
+				   parallelise : bool = True):
 		"""
 		seems like the only data I can find is LTE data (?)
 		"""
@@ -153,12 +165,17 @@ class spectral_grid():
 		
 		phoenix_wavelengths = get_wavelength_grid()
 		
-		# effectively redundant, as spectrum class has a built in converter now anyway. maybe delete this logic
-		# if CONVERT_WAVELENGTHS_TO_AIR:
-		# 	phoenix_wavelengths = specutils.utils.wcs_utils.vac_to_air(phoenix_wavelengths)
-		
 		def fetch_spectra_and_indices(i, j, k, T_eff, FeH, log_g):
-			spec : phoenix_spectrum = download_spectrum(T_eff, FeH, log_g, lte, alphaM, phoenix_wavelengths, normalising_point, smoothing_range, regularised_wavelengths, resolution_to_convolve_with=resolution_to_convolve_with)
+			spec : phoenix_spectrum = download_spectrum(T_eff,
+											   FeH,
+											   log_g,
+											   lte,
+											   alphaM,
+											   phoenix_wavelengths,
+											   normalising_point=normalising_point,
+											   observational_resolution=observational_resolution,
+											   observational_wavelengths=observational_wavelengths,
+											   name=f"{name}_Teff-{T_eff}_FeH-{FeH}_logg-{log_g}")
 			return i, j, k, spec
 		
 			
@@ -169,9 +186,16 @@ class spectral_grid():
 			for k, g in enumerate(log_gs)
 		]
 
-		results = Parallel(n_jobs=-1, prefer="threads")(
-			delayed(fetch_spectra_and_indices)(*task) for task in tqdm(tasks, desc="downloading spectra...")
-		)
+		if parallelise:
+			results = Parallel(n_jobs=-1, prefer="threads")(
+				delayed(fetch_spectra_and_indices)(*task) for task in tqdm(tasks, desc="downloading spectra...")
+			)
+		else:
+			results = [
+				fetch_spectra_and_indices(*task)
+				for task in tqdm(tasks, desc="downloading spectra...")
+			]
+
 
 		_, _, _, example_spec = results[0]
 		
@@ -184,27 +208,33 @@ class spectral_grid():
 			fluxes[i, j, k, :] = spec.Fluxes
 
 		# assume all spectra have the same wavelengths
-		return cls(spec.Wavelengths, T_effs, FeHs, log_gs, fluxes, regularised_wavelengths != None, regularised_temperatures != None)
+		return cls(spec.Wavelengths,
+			 T_effs,
+			 FeHs,
+			 log_gs,
+			 fluxes,
+			 observational_wavelengths != None,
+			 regularised_temperatures != None)
 
 	def save(self, absolute_path : Path, overwrite : bool):
 		if absolute_path.exists() and not overwrite:
 			raise FileExistsError(f"specified path already exists; and overwrite is set to false. Change the file name or turn on overwrite. (File path: {absolute_path})")
 		
-		with h5py.File(absolute_path, "w") as f:
-			f.attrs["creator"] = "Ben Green"
-			f.attrs["description"] = "Collection of synthetic spectra from PHOENIX dataset"
-			f.attrs["version"] = "0.1"
-			f.attrs["date"] = str(datetime.datetime.now())
-			f.attrs["notes"] = "All spectra share the same wavelength grid."
+		with h5py.File(absolute_path, "w") as file:
+			file.attrs["creator"] = "Ben Green"
+			file.attrs["description"] = "Collection of synthetic spectra from PHOENIX dataset"
+			file.attrs["version"] = "0.1"
+			file.attrs["date"] = str(datetime.datetime.now())
+			file.attrs["notes"] = "All spectra share the same wavelength grid."
 
 			# add some metadata to the QTable e.g. (wavelength medium = vacuum, source, date)
-			f.attrs["wavelength medium"] = "vacuum"
-			f.attrs["source"] = "https://phoenix.astro.physik.uni-goettingen.de/data/"
+			file.attrs["wavelength medium"] = "vacuum"
+			file.attrs["source"] = "https://phoenix.astro.physik.uni-goettingen.de/data/"
 
-			f.attrs[USES_REGULARISED_WAVELENGTHS_METADATA_NAME] = self.Uses_Regularised_Wavelengths
-			f.attrs[USES_REGULARISED_TEMPERATURES_METADATA_NAME] = self.Uses_Regularised_Temperatures
+			file.attrs[USES_REGULARISED_WAVELENGTHS_METADATA_NAME] = self.Uses_Regularised_Wavelengths
+			file.attrs[USES_REGULARISED_TEMPERATURES_METADATA_NAME] = self.Uses_Regularised_Temperatures
 
-			g = f.create_group(MAIN_GRID_NAME)
+			group = file.create_group(MAIN_GRID_NAME)
 
 			# we have to remove units from our np arrays and write them to metadata to be retrieved later
 
@@ -214,19 +244,19 @@ class spectral_grid():
 			# spectrum class forces everything into DEFAULT_FLUX_UNIT (currently Janskys) (or maybe megajanskys; but its all normalised anyway so I don't think it matters much)
 			flux_unit = DEFAULT_FLUX_UNIT
 
-			wavelength_dataset = g.create_dataset(WAVELENGTH_DATASET_NAME, data=np.array(self.Wavelengths))
+			wavelength_dataset = group.create_dataset(WAVELENGTH_DATASET_NAME, data=np.array(self.Wavelengths))
 			wavelength_dataset.attrs[UNIT_METADATA_NAME] = str(wavelength_unit)
 
-			T_eff_dataset = g.create_dataset(TEFF_DATASET_NAME, data=np.array([i.value for i in self.T_effs]))
+			T_eff_dataset = group.create_dataset(TEFF_DATASET_NAME, data=np.array([i.value for i in self.T_effs]))
 			T_eff_dataset.attrs[UNIT_METADATA_NAME] = str(T_eff_unit)
 
-			FeH_dataset = g.create_dataset(FEH_DATASET_NAME, data=self.FeHs)
+			FeH_dataset = group.create_dataset(FEH_DATASET_NAME, data=self.FeHs)
 			FeH_dataset.attrs[UNIT_METADATA_NAME] = str(u.dimensionless_unscaled)
 
-			log_g_dataset = g.create_dataset(LOGG_DATASET_NAME, data=self.Log_gs)
+			log_g_dataset = group.create_dataset(LOGG_DATASET_NAME, data=self.Log_gs)
 			log_g_dataset.attrs[UNIT_METADATA_NAME] = str(u.dimensionless_unscaled)
 
-			flux_dataset = g.create_dataset(FLUX_DATASET_NAME, data=np.array(self.Fluxes))
+			flux_dataset = group.create_dataset(FLUX_DATASET_NAME, data=np.array(self.Fluxes))
 			flux_dataset.attrs[UNIT_METADATA_NAME] = str(flux_unit)
 
 		print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
@@ -270,14 +300,16 @@ class spectral_grid():
 	
 	def to_lookup_table(self) -> Sequence[Quantity]:
 		"""
-		fluxes = lookup_table[T_eff, FeH, log_g]
-		gives the flux (as a numpy array of quantities) for those parameters (if that exists)
+		usage:
+			fluxes = lookup_table[T_eff, FeH, log_g]
+		remarks:
+			gives the flux (as a numpy array of quantities) for those parameters (if that exists)
 
-		and its O(1)!!!!!
+			and its O(1)
 		"""
 		return {
-			(T, FeH, g): self.Fluxes[i, j, k, :]
+			(T, FeH, log_g): self.Fluxes[i, j, k, :]
 			for i, T in enumerate(self.T_effs)
 			for j, FeH in enumerate(self.FeHs)
-			for k, g in enumerate(self.Log_gs)
+			for k, log_g in enumerate(self.Log_gs)
 		}
