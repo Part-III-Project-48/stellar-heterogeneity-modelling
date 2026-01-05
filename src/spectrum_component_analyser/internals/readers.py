@@ -13,7 +13,7 @@ JWST_FLUX_UNITS : Unit = u.MJy
 
 JWST_resolution = .001 * u.um
 
-JWST_normalising_point = 2.2 * u.um
+JWST_normalising_point = 1.6 * u.um
 # JWST_smoothing_range = 0.5 * u.um
 
 

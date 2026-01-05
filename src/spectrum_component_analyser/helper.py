@@ -24,7 +24,13 @@ WAVELENGTH_COLUMN = "wavelength / angstroms"
 FLUX_COLUMN = "flux / erg / (s * cm**2 * cm)"
 SPECTRUM_COLUMN : str = "spectrum object"
 
-def calc_fitted_spectrum(parameter_space, lookup_table, spec_grid : spectral_grid, mask, spectrum_to_decompose, total_number_of_components : int = None, verbose : bool = True) -> Tuple[np.ndarray, OptimizeResult]:
+def calc_fitted_spectrum(parameter_space,
+                         lookup_table,
+                         spec_grid : spectral_grid,
+                         mask, spectrum_to_decompose,
+                         total_number_of_components : int = None, 
+                         verbose : bool = True,
+                         max_iterations : int = 100) -> Tuple[np.ndarray, OptimizeResult]:
     A = np.empty((0, 0))
 
     def force_to_janskys(T_eff : Quantity, FeH : Quantity, log_g : Quantity, wavelengths : Sequence[Quantity], mask):
@@ -47,7 +53,7 @@ def calc_fitted_spectrum(parameter_space, lookup_table, spec_grid : spectral_gri
     # A = sparse.csr_matrix(A)
 
     # this change seems to remove units from result.x?
-    result : OptimizeResult = sp.optimize.lsq_linear(A, spectrum_to_decompose.Fluxes.value, bounds = (0, 1), verbose = 2 if verbose else 0, max_iter=100)#, tol=1e-10, lsmr_tol=1e-5)
+    result : OptimizeResult = sp.optimize.lsq_linear(A, spectrum_to_decompose.Fluxes.value, bounds = (0, 1), verbose = 2 if verbose else 0, max_iter=max_iterations)#, tol=1e-10, lsmr_tol=1e-5)
 
     if verbose:
         print(result)
@@ -56,6 +62,9 @@ def calc_fitted_spectrum(parameter_space, lookup_table, spec_grid : spectral_gri
     return A, result
 
 def get_optimality(A, result, spectrum_to_decompose : spectrum):
+    """
+    returns the residual mean squared error and the residual sum of squares between the (simulated // fitted) spectrum and the observed spectrum
+    """
     determined_spectrum = spectrum(spectrum_to_decompose.Wavelengths, A @ result.x, normalised_point=None, observational_resolution=None, observational_wavelengths=None)
     residual = (determined_spectrum.Fluxes - spectrum_to_decompose.Fluxes) / spectrum_to_decompose.Fluxes
     residual_mean_squared_error = np.sqrt(np.mean(residual**2))
