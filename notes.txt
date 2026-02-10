@@ -88,3 +88,20 @@ looks like the medfilt is smoothing out the phoenix spectra far too much for the
 - fitting in sections
 - take an average of the a section of the integration indices (e.g. indices 0 - 100) - these will be manually chosen by just plotting the tranmission curve and choosing a section that does not look to include the exoplanet's atmosphere
 - also maybe use some scipy code to remove outliers?
+
+
+
+
+
+
+
+
+
+
+
+---
+
+workout how unnormalized the resulting spectrum is when constraining metallacity and log_g
+workout how to constrain sum of w_i's = 1 (if necessary)
+
+this right/left shift between the data maybe wants debugging (and then remaking a new spectral grid)

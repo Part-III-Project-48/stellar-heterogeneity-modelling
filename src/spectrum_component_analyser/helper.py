@@ -53,7 +53,7 @@ def calc_fitted_spectrum(parameter_space,
     # A = sparse.csr_matrix(A)
 
     # this change seems to remove units from result.x?
-    result : OptimizeResult = sp.optimize.lsq_linear(A, spectrum_to_decompose.Fluxes.value, bounds = (0, 1), verbose = 2 if verbose else 0, max_iter=max_iterations)#, tol=1e-10, lsmr_tol=1e-5)
+    result : OptimizeResult = sp.optimize.lsq_linear(A, spectrum_to_decompose.Fluxes.value, bounds = (0, 1000000), verbose = 2 if verbose else 0, max_iter=max_iterations)#, tol=1e-10, lsmr_tol=1e-5)
 
     if verbose:
         print(result)
@@ -77,6 +77,7 @@ def get_optimality(A, result, spectrum_to_decompose : spectrum):
 # dependent on the old spectrum_grid class, but its fine for now (and its just dependent on some arbitrary strings anyway)
 from spectrum_component_analyser.helper import TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN
 WEIGHT_COLUMN : str = "weight"
+PROPORTIONAL_WEIGHT_COLUMN : str = "proportional weight" # weight / np.sum(all weights)
 
 def plot_nicely(A, result, parameter_space, spec_grid : spectral_grid, spectrum_to_decompose : spectrum):
     result_map = {}
@@ -86,10 +87,17 @@ def plot_nicely(A, result, parameter_space, spec_grid : spectral_grid, spectrum_
         result_map[key] = i
         i += 1
 
-    hash_map = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WEIGHT_COLUMN])
+    hash_map = pd.DataFrame(columns=[TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN, WEIGHT_COLUMN, PROPORTIONAL_WEIGHT_COLUMN])
     
     for (T_eff, FeH, log_g) in parameter_space:
-        new_row = {TEFF_COLUMN: T_eff, FEH_COLUMN: FeH, LOGG_COLUMN: log_g, WEIGHT_COLUMN: result.x[result_map[(T_eff, FeH, log_g)]]}
+        weight : float = result.x[result_map[(T_eff, FeH, log_g)]]
+        sum_of_weights : float = np.sum(result.x)
+        new_row = {
+            TEFF_COLUMN: T_eff,
+            FEH_COLUMN: FeH,
+            LOGG_COLUMN: log_g,
+            WEIGHT_COLUMN: weight,
+            PROPORTIONAL_WEIGHT_COLUMN: weight / sum_of_weights}
         hash_map = pd.concat([hash_map, pd.DataFrame([new_row])], ignore_index=True)
 
     print(hash_map.sort_values(WEIGHT_COLUMN, ascending=False).head(10).round(3))
