@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import pandas as pd
 import scipy as sp
 from astropy.visualization import quantity_support
+
 quantity_support()
 from tqdm import tqdm
 import astropy.units as u
@@ -14,6 +15,7 @@ from scipy.optimize._optimize import OptimizeResult
 
 from spectrum_component_analyser.internals.spectrum import spectrum
 from spectrum_component_analyser.internals.spectral_grid import spectral_grid
+from spectrum_component_analyser.internals.spectral_component import spectral_component
 
 # units should be stored in the astropy quantity anyway
 # changing these is fine, as long as a new spectral grid is created which uses these column names
@@ -24,7 +26,7 @@ WAVELENGTH_COLUMN = "wavelength / angstroms"
 FLUX_COLUMN = "flux / erg / (s * cm**2 * cm)"
 SPECTRUM_COLUMN : str = "spectrum object"
 
-def calc_fitted_spectrum(parameter_space,
+def calc_fitted_spectrum(parameter_space : list[spectral_component],
                          lookup_table,
                          spec_grid : spectral_grid,
                          mask, spectrum_to_decompose,
@@ -47,7 +49,7 @@ def calc_fitted_spectrum(parameter_space,
         print("minimising")
     
     # assume that w \in [0,1] : but I think this will only be true for real data if normalisation has been done correctly (???)
-    from scipy import sparse
+    # from scipy import sparse
 
     # this seems to break the fitting
     # A = sparse.csr_matrix(A)
@@ -180,9 +182,20 @@ def plot_nicely(A, result, parameter_space, spec_grid : spectral_grid, spectrum_
     return hash_map
 
 def get_main_components(hash_map, number_of_components_to_keep : int) -> list[Tuple[Quantity, Quantity, Quantity]]:
-    main_components : list[(Quantity, Quantity, Quantity)] = []
+    """
+    outputs in order Teff, FeH, logg
+
+    this could (read: should) be converted to a class
+    """
+    main_components : list[spectral_component] = []
 
     for _, row in hash_map.sort_values(WEIGHT_COLUMN, ascending=False)[0:number_of_components_to_keep].iterrows():
-        main_components.append((row[TEFF_COLUMN], row[FEH_COLUMN], row[LOGG_COLUMN]))
+        main_components.append(
+            spectral_component(
+                t_eff=row[TEFF_COLUMN],
+                feh=row[FEH_COLUMN],
+                log_g=row[LOGG_COLUMN]
+            )
+        )
     
     return main_components

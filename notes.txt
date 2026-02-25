@@ -112,3 +112,11 @@ if yes, then something about our approach might be off
 if no, then those stars which are underrepped in the red might just have spots near the edges that are being _limb darkened_
 
 kinda crazy idea but why not plot the fitting variables over time? like average over 5 adjacent spectra and produce 50 data points. if they're all randomly around then its prolly wrong
+
+
+
+
+do meta calibration
+compare to current teff feh logg (interpolated) beliefs
+if its better than ours, then something is up with the code
+if its worse, then either their analysis assuming 1 component is invalid (and maybe it would be worth trying to prove that multi component stars fail to be approximated well by 1 component), or the PHOENIX-ACES (or whatever model they are using) disagrees with the PHOENIX model spectra we are using, or there's some interpolation error etc

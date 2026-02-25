@@ -116,7 +116,9 @@ def download_spectrum(T_eff,
 
 class spectral_grid():
 	"""
-	this is an internal class really: its much more human readable to just use list[spectrum]; this is just for saving to / loading from a hdf5 file
+	Recommended to not use this initialiser: use the wrappers such as from_internet and from_hdf5.
+
+	This is an internal class really. It's much more human readable to just use list[spectrum]; this is just for saving to / loading from a hdf5 file.
 	"""
 	def __init__(self,
 			  wavelengths : Sequence[Quantity],
@@ -215,6 +217,20 @@ class spectral_grid():
 			 fluxes,
 			 observational_wavelengths != None,
 			 regularised_temperatures != None)
+	
+	# def from_internet_restricted(cls,
+	# 			   T_effs,
+	# 			   FeHs,
+	# 			   log_gs,
+	# 			   normalising_point : Quantity,
+	# 			   observational_resolution : Quantity,
+	# 			   observational_wavelengths : np.ndarray,
+	# 			   name : str,
+	# 			   alphaM = 0,
+	# 			   lte = True,
+	# 			   regularised_temperatures : Sequence[Quantity] = None,
+	# 			   parallelise : bool = True):
+	
 
 	def save(self, absolute_path : Path, overwrite : bool):
 		if absolute_path.exists() and not overwrite:
