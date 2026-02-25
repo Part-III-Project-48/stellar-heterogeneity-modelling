@@ -4,6 +4,7 @@ from pathlib import Path
 import astropy.units as u
 from astropy.io import fits
 from astropy.units import Unit
+from astropy.units import Quantity
 
 import numpy as np
 from spectrum_component_analyser.internals.spectrum import spectrum
@@ -15,10 +16,13 @@ JWST_RESOLUTION = .001 * u.um
 
 JWST_NORMALISING_POINT = 1.6 * u.um
 
-def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str = None, INTEGRATION_INDEX : int = 0) -> spectrum:
+def read_JWST_fits(fits_absolute_path : Path,  T_eff : Quantity[u.K] = None, verbose : bool = False, name : str = None, INTEGRATION_INDEX : int = 0) -> spectrum:
 	"""
 	Attributes
 	----------
+	T_eff : Quantity[u.K]
+		an assumed effective temperature for the star (used for correct normalisation). Getting this incorrect will not lead to invalid results, but it will lead to the total covering fraction summing to less or larger than 1. But the relative proportions of the area covering fractions (after being normalised to 1) would still be correct. That's why this is an optional parameter. But if you want to plot these spectra, then you might want to provide this.
+	
 	verbose : bool (default False)
 		prints a summary of all the headers found in the fits file, as well as the string representation of the header with header index HDU_INDEX
 	"""
@@ -35,6 +39,7 @@ def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str
 				  fluxes = data["FLUX"][INTEGRATION_INDEX] * JWST_FLUX_UNITS,
 				  name=name,
 				  normalised_point = JWST_NORMALISING_POINT,
+				  temperature=T_eff,
 				  observational_resolution=None, # this is an observational spectrum (as we are reading in a JWST fits file) - so no convolution or resampling is necessary
 				  observational_wavelengths=None)
 
@@ -44,7 +49,7 @@ def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str
 	
 	return spec
 
-def read_JWST_fits_all_spectra(fits_absolute_path : Path, verbose : bool = False, name : str = None) -> list[spectrum]:
+def read_JWST_fits_all_spectra(fits_absolute_path : Path, T_eff : Quantity[u.K], verbose : bool = False, name : str = None) -> list[spectrum]:
 	"""
 	Attributes
 	----------
@@ -68,7 +73,8 @@ def read_JWST_fits_all_spectra(fits_absolute_path : Path, verbose : bool = False
 			# these column name strings are unique to JWST 1D 
 			spec : spectrum = spectrum(wavelengths = data["WAVELENGTH"][integration_index] * JWST_WAVELENGTH_UNITS,
 					fluxes = data["FLUX"][integration_index] * JWST_FLUX_UNITS,
-					normalised_point=None, # this is an observational spectrum: no normalising or interpolation should be done on it
+					normalised_point=JWST_NORMALISING_POINT, # this is an observational spectrum: no normalising or interpolation should be done on it
+					temperature=T_eff,
 					observational_resolution=None,
 					observational_wavelengths=None,
 					name=name)

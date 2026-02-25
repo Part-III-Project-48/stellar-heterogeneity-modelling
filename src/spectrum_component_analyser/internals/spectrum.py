@@ -14,13 +14,23 @@ import specutils
 from astropy.units import Quantity
 import warnings
 from scipy.ndimage import gaussian_filter1d
+from astropy.modeling import models
 
 ## can do : update normalise jansksys to act on the spectrum class self and then update main.ipynb to use that
 
 DEFAULT_FLUX_UNIT = u.Jy
 
 class spectrum:
-	def __init__(self, wavelengths : np.array, fluxes : np.array, normalised_point : Quantity, observational_resolution : Quantity, observational_wavelengths : np.ndarray, name : str = None):
+	def __init__(
+			self,
+			wavelengths : np.array,
+			fluxes : np.array,
+			normalised_point : Quantity,
+			observational_resolution : Quantity,
+			observational_wavelengths : np.ndarray,
+			temperature,  # used for normalisation
+			name : str = None
+		):
 		"""
 		Flux is going to be stored in Janskys from now on
 
@@ -59,8 +69,8 @@ class spectrum:
 		if observational_resolution != None:
 			self.regrid_flux(desired_resolution=observational_resolution)
 		
-		if normalised_point != None:
-			self.normalise_flux(normalised_point)
+		if normalised_point != None and temperature != None:
+			self.normalise_flux(normalised_point=normalised_point, temperature=temperature)
 
 		# sample onto a set of wavelengths (for an instrument at observational_resolution)
 		if observational_wavelengths != None:
@@ -69,17 +79,32 @@ class spectrum:
 		
 		self.Normalised_Point = normalised_point
 		self.Desired_Resolution = observational_resolution
+
+		# test astropy blackbody stuff
+		
+		# bb = models.BlackBody(temperature=temperature)
+		# plt.plot(self.Wavelengths, (bb(self.Wavelengths) * 4 * np.pi * u.sr).to(self.Fluxes.unit))
+		# plt.plot(self.Wavelengths, self.Fluxes)
+		# plt.show()
 	
-	def normalise_flux(self, normalised_point : Quantity):
+	def normalise_flux(self, normalised_point : Quantity, temperature : Quantity[u.K]) -> None:
 		"""
-		normalise the counts at normalised_point (or next nearest value) to be 1
+		normalise fluxes so that at normalised point, the magnitude of the flux equals its black body value
 
 		normalised_point : an astropy quantity with dimension of length
+		temperature : an astropy quantity with units of Kelvin
 		"""
+
 		if (u.get_physical_type(self.Fluxes[0].unit) != u.get_physical_type(u.Jy)):
 			raise ValueError(f"fluxes are in units of {self.Fluxes.unit}. this is not in a unit convertible to janskys. no normalisation will be carried out.")
 
 		self.Fluxes /= self.Fluxes[(normalised_point <= self.Wavelengths)][0].value
+
+		bb = models.BlackBody(temperature=temperature)
+		self.Fluxes *= (bb(normalised_point) * 4 * np.pi * u.sr).to(self.Fluxes.unit).value
+
+		# keep fluxes relative to the normalised_point of a blackbody at 3500 K (this is completely arbitrary but keeps the numbers from being like 10**21 and annoying)
+		self.Fluxes /= (models.BlackBody(temperature=3500 *u.K)(normalised_point) * 4 * np.pi * u.sr ).to(self.Fluxes.unit).value
 	
 	def regrid_flux(self, desired_resolution : Quantity) -> np.array:
 		"""
@@ -129,10 +154,10 @@ class spectrum:
 		return spectrum(self.Wavelengths[idx],
 				  self.Fluxes[idx],
 				  name=self.Name,
-				  normalised_point=None,
+				  normalised_point=None, # no extra convolution or resampling is done on sliced spectra; we assume the fluxes and wavelengths are already as desired
 				  observational_resolution=None,
-				  observational_wavelengths=None) # no extra convolution or resampling is done on sliced spectra; we assume the fluxes and wavelengths are already as desired
-
+				  observational_wavelengths=None,
+				  temperature=None)
 	def plot(self, clear : bool = True, show : bool = True):
 		if clear:
 			plt.clf()
