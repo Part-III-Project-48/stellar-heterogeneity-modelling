@@ -11,7 +11,7 @@ from pathlib import Path
 # internal imports
 from spectrum_component_analyser.internals.spectral_grid import spectral_grid
 from spectrum_component_analyser.internals.spectrum import spectrum
-from spectrum_component_analyser.internals.readers import read_JWST_fits, read_HARPS_fits, JWST_resolution, HARPS_resolution, JWST_normalising_point, HARPS_normalising_point
+from spectrum_component_analyser.internals.readers import read_JWST_fits, read_HARPS_fits, JWST_RESOLUTION, HARPS_resolution, JWST_NORMALISING_POINT, HARPS_normalising_point
 
 SPECTRAL_GRID_FILENAME : Path = Path("test_JWST_not_oversmoothed.hdf5")
 
@@ -59,8 +59,8 @@ if __name__ == "__main__":
 	spec_grid : spectral_grid = spectral_grid.from_internet(T_effs=T_effs,
 														 FeHs=FeHs,
 														 log_gs=log_gs,
-														 normalising_point=JWST_normalising_point,
-														 observational_resolution=JWST_resolution,
+														 normalising_point=JWST_NORMALISING_POINT,
+														 observational_resolution=JWST_RESOLUTION,
 														 observational_wavelengths=spectrum_to_decompose.Wavelengths,
 														 name="phoenix_data")
 

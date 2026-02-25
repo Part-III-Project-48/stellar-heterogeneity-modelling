@@ -86,8 +86,8 @@ def download_spectrum(T_eff,
 		response = requests.get(url)
 		response.raise_for_status()
 	except requests.exceptions.HTTPError as e:
-		tqdm.write(f"[PHOENIX GRID CREATOR] : HTTPError raised with the following parameters.\nlte: {lte}\nT_eff={T_eff}\nlog_g={log_g}\nFeH={FeH}\nalphaM={alphaM}")
-		tqdm.write(f"url = {url}")
+		tqdm.write(f"[PHOENIX GRID CREATOR] : HTTPError raised with the following parameters:\nlte: {lte}\nT_eff={T_eff}\nlog_g={log_g}\nFeH={FeH}\nalphaM={alphaM}")
+		tqdm.write(f"attempted url = {url}")
 		tqdm.write("\n continuing with the next file...")
 		return
 	
@@ -128,7 +128,7 @@ class spectral_grid():
 			  uses_regularised_temperatures : bool):
 		"""
 		don't use this init: use the other wrappers that download things or load in from a hdf5 file
-		(the structure of fluxes is non trivial)
+		(the structure of the fluxes array is non trivial)
 		"""
 
 		# 1D arrays

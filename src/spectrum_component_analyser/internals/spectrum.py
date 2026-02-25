@@ -64,7 +64,7 @@ class spectrum:
 
 		# sample onto a set of wavelengths (for an instrument at observational_resolution)
 		if observational_wavelengths != None:
-			self.Fluxes = np.interp(observational_wavelengths, self.Wavelengths, self.Fluxes) # new = np.interp(new | old | old)
+			self.Fluxes = np.interp(observational_wavelengths, self.Wavelengths, self.Fluxes) # new y = np.interp(new x | old x | old y)
 			self.Wavelengths = observational_wavelengths
 		
 		self.Normalised_Point = normalised_point
@@ -107,17 +107,19 @@ class spectrum:
 		wave_desired_resolution = np.linspace(self.Wavelengths.min(), self.Wavelengths.max(), desired_number_of_wavelength_points)
 
 		new_flux = np.interp(wave_desired_resolution, wave_uniform, convolved_flux)
-		new_flux *= DEFAULT_FLUX_UNIT
+		new_flux *= DEFAULT_FLUX_UNIT # units get removed (probably by np.interp); add them back in
 
 		self.Wavelengths = wave_desired_resolution
 		self.Fluxes = new_flux
 
-	@property
-	def air_wavelengths(self):
+	def air_wavelengths(self, conversion_method : str = None): # use specutil default
 		"""
 		this assumes that the hdf5 is in vacuum units; can easily check metadata of hdf5 file
 		"""
-		return specutils.utils.wcs_utils.vac_to_air(self.Wavelengths)
+		if conversion_method is None:
+			return specutils.utils.wcs_utils.vac_to_air(self.Wavelengths)
+		else:
+			return specutils.utils.wcs_utils.vac_to_air(self.Wavelengths, method=conversion_method)			
 	
 	def __getitem__(self, idx):
 		"""
@@ -131,11 +133,13 @@ class spectrum:
 				  observational_resolution=None,
 				  observational_wavelengths=None) # no extra convolution or resampling is done on sliced spectra; we assume the fluxes and wavelengths are already as desired
 
-	def plot(self):
-		plt.clf()
+	def plot(self, clear : bool = True, show : bool = True):
+		if clear:
+			plt.clf()
 		plt.title(f"Observational Spectrum for {self.Name}")
 		plt.plot(self.Wavelengths, self.Fluxes)
-		plt.show()
+		if show:
+			plt.show()
 	
 	def __len__(self):
 		if len(self.Wavelengths) != len(self.Fluxes):

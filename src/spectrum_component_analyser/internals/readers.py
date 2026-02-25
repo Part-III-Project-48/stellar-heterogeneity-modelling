@@ -11,11 +11,9 @@ from spectrum_component_analyser.internals.spectrum import spectrum
 JWST_WAVELENGTH_UNITS : Unit = u.um
 JWST_FLUX_UNITS : Unit = u.MJy
 
-JWST_resolution = .001 * u.um
+JWST_RESOLUTION = .001 * u.um
 
-JWST_normalising_point = 1.6 * u.um
-# JWST_smoothing_range = 0.5 * u.um
-
+JWST_NORMALISING_POINT = 1.6 * u.um
 
 def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str = None, INTEGRATION_INDEX : int = 0) -> spectrum:
 	"""
@@ -36,7 +34,7 @@ def read_JWST_fits(fits_absolute_path : Path, verbose : bool = False, name : str
 		spec : spectrum = spectrum(wavelengths = data["WAVELENGTH"][INTEGRATION_INDEX] * JWST_WAVELENGTH_UNITS,
 				  fluxes = data["FLUX"][INTEGRATION_INDEX] * JWST_FLUX_UNITS,
 				  name=name,
-				  normalised_point = JWST_normalising_point,
+				  normalised_point = JWST_NORMALISING_POINT,
 				  observational_resolution=None, # this is an observational spectrum (as we are reading in a JWST fits file) - so no convolution or resampling is necessary
 				  observational_wavelengths=None)
 

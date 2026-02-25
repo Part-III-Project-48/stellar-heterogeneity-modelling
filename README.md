@@ -4,12 +4,13 @@ Cambridge Part III Project 48
 
 - PHOENIX homepage : [link](https://phoenix.astro.physik.uni-goettingen.de/)
 - PHOENIX reference paper : [link](https://arxiv.org/abs/1303.5632v2)
+- JWST MAST search : [link](https://mast.stsci.edu/search/ui/#/jwst)
 
 NOTE: the ftp links on the PHOENIX website are broken. Converting the format to start with https:// works; see spots_and_faculae_model/README.md for an example
 
 # Setting up the dependencies
 
-To use this folder you'll need to download poetry: https://python-poetry.org/docs/
+To use this repo you'll need to download poetry: https://python-poetry.org/docs/
 
 To install python dependencies use:
 ```bash
@@ -46,7 +47,7 @@ Then to create the HDF5 file, just run `spots_and_faculae_model/src/phoenix_grid
 
 # Downloading other .fits files
 
-All .fits files are gitignored currently. This means that the wavelength grid is NOT stored in this repo and must be downloaded locally (e.g. into assets/) before recreating the HDF5 spectra grid.
+All .fits files are gitignored currently. This means that the wavelength grid is NOT stored in this repo and must be downloaded locally (e.g. into spectral_grids/) before recreating the HDF5 spectra grid.
 
 All other spectra downloads are performed automatically by fits_to_hdf5.py (currently), and the file format conventions for the spectra can just be read directly from within PHOENIX_filename_conventions.py.
 
@@ -55,8 +56,9 @@ https://phoenix.astro.physik.uni-goettingen.de/data/HiResFITS/PHOENIX-ACES-AGSS-
 
 # Notes
 
-- the only wavelength grid I can find is WAVE (not the AWAV) which is specified as VACUUM wavelengths. astropy specutils is used to convert from vacuum to air wavelength (this apparently has a low error)
-- there appears to be 1,569,128 wavelength points in total in the PHOENIX fits files I've checked 
+- the only wavelength grid I can find is WAVE (not the AWAV) which is specified as VACUUM wavelengths. astropy specutils can be used to convert from vacuum to air wavelength if needed (this apparently has a low error)
+- there appears to be 1,569,128 wavelength points in total in the PHOENIX fits files I've checked
+- JWST Stage 2 products are specified in vacuum wavelength [source](https://jwst-docs.stsci.edu/accessing-jwst-data/jwst-science-data-overview#gsc.tab=0:~:text=Note%20that%20spectroscopic%20data%20products%20have%20wavelengths%20given%20in%20the%20barycentric%20vacuum%20rest%20frame)
 
 # Conventions
 

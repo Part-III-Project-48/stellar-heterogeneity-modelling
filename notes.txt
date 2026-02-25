@@ -105,3 +105,10 @@ workout how unnormalized the resulting spectrum is when constraining metallacity
 workout how to constrain sum of w_i's = 1 (if necessary)
 
 this right/left shift between the data maybe wants debugging (and then remaking a new spectral grid)
+
+
+test other star data: when constraining the parameters to nearby the true parameters (and then temperature +- 500K or whatever) is the graph always underrepresenting the red region?
+if yes, then something about our approach might be off
+if no, then those stars which are underrepped in the red might just have spots near the edges that are being _limb darkened_
+
+kinda crazy idea but why not plot the fitting variables over time? like average over 5 adjacent spectra and produce 50 data points. if they're all randomly around then its prolly wrong
