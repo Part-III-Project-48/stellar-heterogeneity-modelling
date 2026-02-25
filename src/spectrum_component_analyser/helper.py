@@ -65,7 +65,16 @@ def get_optimality(A, result, spectrum_to_decompose : spectrum):
     """
     returns the residual mean squared error and the residual sum of squares between the (simulated // fitted) spectrum and the observed spectrum
     """
-    determined_spectrum = spectrum(spectrum_to_decompose.Wavelengths, A @ result.x, normalised_point=None, observational_resolution=None, observational_wavelengths=None)
+
+    determined_spectrum = spectrum(
+        spectrum_to_decompose.Wavelengths,
+        A @ result.x,
+        normalised_point=None, # carry out no normalisation or resampling on the determined spectrum (as this spectrum is a sum of spectra from PHOENIX which should already be formatted in this way)
+        observational_resolution=None,
+        observational_wavelengths=None,
+        temperature=None
+    )
+
     residual = (determined_spectrum.Fluxes - spectrum_to_decompose.Fluxes) / spectrum_to_decompose.Fluxes
     residual_mean_squared_error = np.sqrt(np.mean(residual**2))
     residual_sum_of_squares  = np.sum(residual**2)
@@ -79,7 +88,7 @@ from spectrum_component_analyser.helper import TEFF_COLUMN, FEH_COLUMN, LOGG_COL
 WEIGHT_COLUMN : str = "weight"
 PROPORTIONAL_WEIGHT_COLUMN : str = "proportional weight" # weight / np.sum(all weights)
 
-def plot_nicely(A, result, parameter_space, spec_grid : spectral_grid, spectrum_to_decompose : spectrum):
+def plot_nicely(A, result, parameter_space, spec_grid : spectral_grid, spectrum_to_decompose : spectrum, star_name : str):
     result_map = {}
     i = 0
     for (T_eff, FeH, log_g) in parameter_space:
@@ -100,7 +109,13 @@ def plot_nicely(A, result, parameter_space, spec_grid : spectral_grid, spectrum_
             WEIGHT_COLUMN: weight}
         hash_map = pd.concat([hash_map, pd.DataFrame([new_row])], ignore_index=True)
 
-    print(hash_map.sort_values(WEIGHT_COLUMN, ascending=False).head(10).round(3))
+    print(hash_map
+          .rename(columns={
+            "T_eff / K": "Teff",
+            "Fe/H / relative to solar": "[Fe/H]",
+            "log_g / log(cm s^(-2))": "logg"
+          })
+          .sort_values(WEIGHT_COLUMN, ascending=False).head(10).round(3))
 
     fig, axes = plt.subplots(4, 4, figsize=(15, 15), sharex=True, sharey=True)
     axes = axes.ravel()
@@ -118,25 +133,25 @@ def plot_nicely(A, result, parameter_space, spec_grid : spectral_grid, spectrum_
         # axes[i].set_xticks(np.arange(np.min(T_effs) / u.K, np.max(T_effs) / u.K + 1, 50) * u.K)
         # axes[i].grid()
 
-    STAR_NAME : str = "LTT 3780"
     cbar = fig.colorbar(sc, ax=axes, orientation='vertical', fraction=0.05, pad=0.04)
     cbar.set_label("Weights")
-    fig.suptitle(STAR_NAME)
+    fig.suptitle(star_name)
     plt.show()
 
-    plt.clf()
+    # plt.clf()
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8), sharex=True)
 
     # --- First subplot: spectrum comparison ---
-    ax1.set_title(STAR_NAME)
+    ax1.set_title(star_name)
 
     determined_spectrum = spectrum(
         spectrum_to_decompose.Wavelengths,
         A @ result.x,
         normalised_point=None, # carry out no normalisation or resampling on the determined spectrum (as this spectrum is a sum of spectra from PHOENIX which should already be formatted in this way)
         observational_resolution=None,
-        observational_wavelengths=None
+        observational_wavelengths=None,
+        temperature=None
     )
 
     ax1.plot(
