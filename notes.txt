@@ -120,3 +120,6 @@ do meta calibration
 compare to current teff feh logg (interpolated) beliefs
 if its better than ours, then something is up with the code
 if its worse, then either their analysis assuming 1 component is invalid (and maybe it would be worth trying to prove that multi component stars fail to be approximated well by 1 component), or the PHOENIX-ACES (or whatever model they are using) disagrees with the PHOENIX model spectra we are using, or there's some interpolation error etc
+
+
+maybe have a look to see how minimisation is being done by the LTT 3780 papers

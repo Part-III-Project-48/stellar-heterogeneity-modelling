@@ -87,7 +87,7 @@ def get_optimality(A, result, spectrum_to_decompose : spectrum):
 
 # # # plot some data # # #
 # dependent on the old spectrum_grid class, but its fine for now (and its just dependent on some arbitrary strings anyway)
-from spectrum_component_analyser.helper import TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN
+from spectrum_component_analyser.minimisation import TEFF_COLUMN, FEH_COLUMN, LOGG_COLUMN
 WEIGHT_COLUMN : str = "weight"
 PROPORTIONAL_WEIGHT_COLUMN : str = "proportional weight" # weight / np.sum(all weights)
 

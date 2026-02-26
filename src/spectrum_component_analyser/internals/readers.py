@@ -14,7 +14,7 @@ JWST_FLUX_UNITS : Unit = u.MJy
 
 JWST_RESOLUTION = .001 * u.um
 
-JWST_NORMALISING_POINT = 1.6 * u.um
+JWST_NORMALISING_POINT = 1.1 * u.um
 
 def read_JWST_fits(fits_absolute_path : Path,  T_eff : Quantity[u.K] = None, verbose : bool = False, name : str = None, INTEGRATION_INDEX : int = 0) -> spectrum:
 	"""

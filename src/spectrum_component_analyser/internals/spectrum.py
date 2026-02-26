@@ -21,13 +21,6 @@ from astropy.modeling import models
 DEFAULT_FLUX_UNIT = u.Jy
 
 class spectrum:
-	"""
-	Parameters
-	----------
-
-	temperature
-		Used for normalisation
-	"""
 	def __init__(
 			self,
 			wavelengths : np.array,
@@ -47,7 +40,7 @@ class spectrum:
 
 		output_wavelengths must have a resolution of (at least approximately) the input desired resolution.
 
-		Attributes
+		Parameters
 		----------
 
 		wavelengths : np.array
@@ -55,6 +48,9 @@ class spectrum:
 
 		phoenix_fluxes : np.array
 			an array of astropy quantities (with some units that are convertible to Janskys by u.spectral_density equivalencies; e.g. Janskys themself or [erg / (s * cm**2 * cm)])
+
+		temperature
+			Used for normalisation
 		"""
 
 		wavelengths = np.atleast_1d(wavelengths)

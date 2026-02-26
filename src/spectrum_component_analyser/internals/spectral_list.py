@@ -1,6 +1,7 @@
 from typing import Sequence
 from astropy.units import Quantity
 import numpy as np
+from tqdm import tqdm
 
 from spectrum_component_analyser.internals.phoenix_spectrum import phoenix_spectrum
 from spectrum_component_analyser.internals.readers import JWST_NORMALISING_POINT, JWST_RESOLUTION
@@ -43,7 +44,7 @@ class spectral_list():
 		phoenix_wavelengths = get_wavelength_grid()
 		
 		component : spectral_component # yay for python
-		for component in spectral_components:
+		for component in tqdm(spectral_components):
 			phoenix_spec : phoenix_spectrum = download_spectrum(
 				component.T_eff,
 				component.FeH,
