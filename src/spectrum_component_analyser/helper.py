@@ -33,13 +33,14 @@ def calc_fitted_spectrum(parameter_space : list[spectral_component],
                          total_number_of_components : int = None, 
                          verbose : bool = True,
                          max_iterations : int = 100) -> Tuple[np.ndarray, OptimizeResult]:
-    A = np.empty((0, 0))
+    # A = np.empty((0, 0))
 
     def force_to_janskys(T_eff : Quantity, FeH : Quantity, log_g : Quantity, wavelengths : Sequence[Quantity], mask):
         fluxes = lookup_table[T_eff, FeH, log_g]
         return fluxes.to(u.Jy, equivalencies=u.spectral_density(wavelengths))[mask]
 
-    normalised_and_converted_spectral_components : list[list[Quantity]] = Parallel(n_jobs=-1, prefer="threads")(
+    # some horrendous nested typing here; im just trying to show this is a list of (list of fluxes). We only need to put the fluxes into the A matrix.
+    normalised_and_converted_spectral_components : list[list[Quantity[u.Jy]]] = Parallel(n_jobs=-1, prefer="threads")(
         delayed(force_to_janskys)(T_eff, FeH, log_g, spec_grid.Wavelengths, mask) for T_eff, FeH, log_g in tqdm(parameter_space, total=total_number_of_components, desc="Appending values to A matrix...", disable=not verbose)
     )
 
@@ -181,11 +182,11 @@ def plot_nicely(A, result, parameter_space, spec_grid : spectral_grid, spectrum_
 
     return hash_map
 
-def get_main_components(hash_map, number_of_components_to_keep : int) -> list[Tuple[Quantity, Quantity, Quantity]]:
+def get_main_components(hash_map, number_of_components_to_keep : int) -> list[spectral_component]:
     """
     outputs in order Teff, FeH, logg
 
-    this could (read: should) be converted to a class
+    hash_map could (read: should) be converted to a class
     """
     main_components : list[spectral_component] = []
 

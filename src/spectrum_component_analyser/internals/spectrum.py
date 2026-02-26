@@ -21,6 +21,13 @@ from astropy.modeling import models
 DEFAULT_FLUX_UNIT = u.Jy
 
 class spectrum:
+	"""
+	Parameters
+	----------
+
+	temperature
+		Used for normalisation
+	"""
 	def __init__(
 			self,
 			wavelengths : np.array,
@@ -28,7 +35,7 @@ class spectrum:
 			normalised_point : Quantity,
 			observational_resolution : Quantity,
 			observational_wavelengths : np.ndarray,
-			temperature,  # used for normalisation
+			temperature,
 			name : str = None
 		):
 		"""

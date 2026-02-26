@@ -1,4 +1,4 @@
-# stellar-heterogeneity-modelling
+# Stellar Spectrum Decomposition using PHOENIX
 
 Cambridge Part III Project 48
 

@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from typing import Sequence
+from typing import Self, Sequence
 from astropy.units import Quantity
 import numpy as np
 import astropy.units as u
@@ -15,12 +15,13 @@ from pathlib import Path
 import datetime
 import scipy as sp
 import h5py
-from typing import Sequence
+from astropy.units import Unit
 
 # internal imports
 from phoenix_grid_creator.PHOENIX_filename_conventions import *
 from spectrum_component_analyser.internals.phoenix_spectrum import phoenix_spectrum
 import h5py
+from spectrum_component_analyser.internals.spectral_component import spectral_component
 from spectrum_component_analyser.internals.spectrum import DEFAULT_FLUX_UNIT
 
 PHOENIX_FLUX_UNITS = u.erg / (u.s * u.cm**2 * u.cm)
@@ -127,11 +128,15 @@ class spectral_grid():
 			  log_gs : Sequence[Quantity],
 			  fluxes : Sequence[Quantity],
 			  uses_regularised_wavelengths : bool,
-			  uses_regularised_temperatures : bool):
+			  uses_regularised_temperatures : bool,
+			  _internal=False):
 		"""
 		don't use this init: use the other wrappers that download things or load in from a hdf5 file
 		(the structure of the fluxes array is non trivial)
 		"""
+
+		if (not _internal):
+			raise RuntimeError("Spectral Grid's __init__ should only be used by internal methods: use factory methods instead")
 
 		# 1D arrays
 		self.Wavelengths = wavelengths
@@ -157,9 +162,17 @@ class spectral_grid():
 				   alphaM = 0,
 				   lte = True,
 				   regularised_temperatures : Sequence[Quantity] = None,
-				   parallelise : bool = True):
+				   parallelise : bool = True) -> Self:
 		"""
-		seems like the only data I can find is LTE data (?)
+		Download the spectra for all combinations between T_effs, FeHs and log_gs from the internet, and wrap it into a nice class.
+
+		The list of components that go into creating this spectral grid is the cartesian product of the 3 input lists.
+
+		Use this if you want a large number of spectra over a large parameter space.
+
+		---
+
+		Seems like the only data I can find is LTE data :(
 		"""
 
 		if regularised_temperatures != None:
@@ -167,7 +180,7 @@ class spectral_grid():
 		
 		phoenix_wavelengths = get_wavelength_grid()
 		
-		def fetch_spectra_and_indices(i, j, k, T_eff, FeH, log_g):
+		def fetch_spectra_and_indices(i, j, k, T_eff, FeH, log_g) -> tuple[int, int, int, Quantity[u.K], Quantity[u.dimensionless_unscaled], Quantity[u.dimensionless_unscaled]]:
 			spec : phoenix_spectrum = download_spectrum(T_eff,
 											   FeH,
 											   log_g,
@@ -198,7 +211,6 @@ class spectral_grid():
 				for task in tqdm(tasks, desc="downloading spectra...")
 			]
 
-
 		_, _, _, example_spec = results[0]
 		
 		# pre - allocate 4d flux array. assumes all spectra have the same wavelength array
@@ -216,21 +228,8 @@ class spectral_grid():
 			 log_gs,
 			 fluxes,
 			 observational_wavelengths != None,
-			 regularised_temperatures != None)
-	
-	# def from_internet_restricted(cls,
-	# 			   T_effs,
-	# 			   FeHs,
-	# 			   log_gs,
-	# 			   normalising_point : Quantity,
-	# 			   observational_resolution : Quantity,
-	# 			   observational_wavelengths : np.ndarray,
-	# 			   name : str,
-	# 			   alphaM = 0,
-	# 			   lte = True,
-	# 			   regularised_temperatures : Sequence[Quantity] = None,
-	# 			   parallelise : bool = True):
-	
+			 regularised_temperatures != None,
+			 _internal=True)
 
 	def save(self, absolute_path : Path, overwrite : bool):
 		if absolute_path.exists() and not overwrite:
@@ -279,8 +278,6 @@ class spectral_grid():
 
 	@classmethod
 	def from_hdf5(cls, absolute_path : Path):
-		from astropy.units import Unit
-		
 		with h5py.File(absolute_path, "r") as f:
 			main_grid = f[MAIN_GRID_NAME]
 
@@ -303,7 +300,7 @@ class spectral_grid():
 
 			uses_regularised_temperatures = f.attrs[USES_REGULARISED_TEMPERATURES_METADATA_NAME]
 			
-		return cls(wavelengths, T_effs, FeHs, log_gs, fluxes, uses_regularised_wavelengths, uses_regularised_temperatures)
+		return cls(wavelengths, T_effs, FeHs, log_gs, fluxes, uses_regularised_wavelengths, uses_regularised_temperatures, _internal=True)
 	
 	def get_spectrum(self, T_eff : Quantity[u.K], FeH, log_g) -> phoenix_spectrum:
 		i = np.where(self.T_effs == T_eff)[0][0]
@@ -316,16 +313,18 @@ class spectral_grid():
 	
 	def to_lookup_table(self) -> Sequence[Quantity]:
 		"""
-		usage:
+		This is kinda fragile atm because it assumes that the structure of Fluxes isn't messed with after initialisation (maybe reasonable but arguably not)
+
+		Usage:
 			fluxes = lookup_table[T_eff, FeH, log_g]
-		remarks:
+		Remarks:
 			gives the flux (as a numpy array of quantities) for those parameters (if that exists)
 
 			and its O(1)
 		"""
 		return {
-			(T, FeH, log_g): self.Fluxes[i, j, k, :]
-			for i, T in enumerate(self.T_effs)
+			(T_eff, FeH, log_g): self.Fluxes[i, j, k, :]
+			for i, T_eff in enumerate(self.T_effs)
 			for j, FeH in enumerate(self.FeHs)
 			for k, log_g in enumerate(self.Log_gs)
 		}
