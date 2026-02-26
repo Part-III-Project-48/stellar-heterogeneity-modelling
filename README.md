@@ -4,7 +4,7 @@
     <img src="https://img.shields.io/github/commit-activity/m/Part-III-Project-48/stellar-heterogeneity-modelling"/>
     <a href="https://www.python.org/downloads/" alt="Download Python">
         <img src="https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FPart-III-Project-48%2Fstellar-heterogeneity-modelling%2Frefs%2Fheads%2Fmain%2Fpyproject.toml" /></a>
-    <img src="https://img.shields.io/badge/version-v0.0.0.dev0-blue"/>
+    <img src="https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FPart-III-Project-48%2Fstellar-heterogeneity-modelling%2Fmain%2Fpyproject.toml&query=%24.project.version&label=version"/>
     <img src="https://img.shields.io/github/languages/code-size/Part-III-Project-48/stellar-heterogeneity-modelling"/>
     <img src="https://img.shields.io/github/repo-size/Part-III-Project-48/stellar-heterogeneity-modelling"/>
 </p>
