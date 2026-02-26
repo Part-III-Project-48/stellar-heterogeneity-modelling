@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from typing import Self, Sequence
+from typing import Self, Sequence, Tuple
 from astropy.units import Quantity
 import numpy as np
 import astropy.units as u
@@ -180,7 +180,7 @@ class spectral_grid():
 		
 		phoenix_wavelengths = get_wavelength_grid()
 		
-		def fetch_spectra_and_indices(i, j, k, T_eff, FeH, log_g) -> tuple[int, int, int, Quantity[u.K], Quantity[u.dimensionless_unscaled], Quantity[u.dimensionless_unscaled]]:
+		def fetch_spectra_and_indices(i, j, k, T_eff, FeH, log_g) -> Tuple[int, int, int, Quantity[u.K], Quantity[u.dimensionless_unscaled], Quantity[u.dimensionless_unscaled]]:
 			spec : phoenix_spectrum = download_spectrum(T_eff,
 											   FeH,
 											   log_g,

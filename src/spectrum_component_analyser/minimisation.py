@@ -5,6 +5,8 @@ import pandas as pd
 import scipy as sp
 from astropy.visualization import quantity_support
 
+from spectrum_component_analyser.internals.spectral_list import spectral_list
+
 quantity_support()
 from tqdm import tqdm
 import astropy.units as u
@@ -29,14 +31,15 @@ SPECTRUM_COLUMN : str = "spectrum object"
 def calc_fitted_spectrum(parameter_space : list[spectral_component],
                          lookup_table,
                          spec_grid : spectral_grid,
-                         mask, spectrum_to_decompose,
+                         mask,
+                         spectrum_to_decompose,
                          total_number_of_components : int = None, 
                          verbose : bool = True,
                          max_iterations : int = 100) -> Tuple[np.ndarray, OptimizeResult]:
     # A = np.empty((0, 0))
 
     def force_to_janskys(T_eff : Quantity, FeH : Quantity, log_g : Quantity, wavelengths : Sequence[Quantity], mask):
-        fluxes = lookup_table[T_eff, FeH, log_g]
+        fluxes : Sequence[Quantity] = lookup_table[T_eff, FeH, log_g] # I don't know if this (weak) typing is actually correct, I'm guessing
         return fluxes.to(u.Jy, equivalencies=u.spectral_density(wavelengths))[mask]
 
     # some horrendous nested typing here; im just trying to show this is a list of (list of fluxes). We only need to put the fluxes into the A matrix.
@@ -56,6 +59,31 @@ def calc_fitted_spectrum(parameter_space : list[spectral_component],
     # A = sparse.csr_matrix(A)
 
     # this change seems to remove units from result.x?
+    result : OptimizeResult = sp.optimize.lsq_linear(A, spectrum_to_decompose.Fluxes.value, bounds = (0.0, 1000000), verbose = 2 if verbose else 0, max_iter=max_iterations)#, tol=1e-10, lsmr_tol=1e-5)
+
+    if verbose:
+        print(result)
+        print(f"sum of weights={np.sum(result.x)}")
+
+    return A, result
+
+def calc_fitted_spectrum_from_spectral_list(
+        spec_list : spectral_list,
+        mask,
+        spectrum_to_decompose,
+        verbose : bool = True,
+        max_iterations : int = 100) -> Tuple[np.ndarray, OptimizeResult]:
+
+    # some horrendous nested typing here; im just trying to show this is a list of (list of fluxes). We only need to put the fluxes into the A matrix, not the wavelengths
+    # normalised_and_converted_spectral_components : list[list[Quantity[u.Jy]]] = [s.Fluxes[mask] for s in spec_list.PhoenixSpectra] # assume stuff is normalised correctly
+    normalised_and_converted_spectral_components : list[list[Quantity[u.Jy]]] = [s.Fluxes for s in spec_list.PhoenixSpectra] # assume stuff is normalised correctly
+
+    A = np.column_stack(normalised_and_converted_spectral_components)
+
+    if verbose:
+        print("minimising")
+
+    # this seems to remove units from result.x
     result : OptimizeResult = sp.optimize.lsq_linear(A, spectrum_to_decompose.Fluxes.value, bounds = (0.0, 1000000), verbose = 2 if verbose else 0, max_iter=max_iterations)#, tol=1e-10, lsmr_tol=1e-5)
 
     if verbose:
