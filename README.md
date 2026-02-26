@@ -1,3 +1,10 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](/LICENSE)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/Part-III-Project-48/stellar-heterogeneity-modelling)
+[![python](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FPart-III-Project-48%2Fstellar-heterogeneity-modelling%2Frefs%2Fheads%2Fmain%2Fpyproject.toml)](https://www.python.org/downloads/)
+![Static Badge](https://img.shields.io/badge/version-v0.0.0.dev0-blue)
+![GitHub repo size](https://img.shields.io/github/repo-size/Part-III-Project-48/stellar-heterogeneity-modelling)
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/stellar-heterogeneity-modelling/Part-III-Project-48)
+
 # Stellar Spectrum Decomposition using PHOENIX
 
 - PHOENIX homepage : https://phoenix.astro.physik.uni-goettingen.de/
