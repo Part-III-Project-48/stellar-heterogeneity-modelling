@@ -17,10 +17,13 @@ import scipy as sp
 import h5py
 from astropy.units import Unit
 
+# versioning - used to save correct version into the hdf5 file
+from importlib.metadata import version
+__version__ = version("spots_and_faculae_model")
+
 # internal imports
 from phoenix_grid_creator.PHOENIX_filename_conventions import *
 from spectrum_component_analyser.internals.phoenix_spectrum import phoenix_spectrum
-import h5py
 from spectrum_component_analyser.internals.spectral_component import spectral_component
 from spectrum_component_analyser.internals.spectrum import DEFAULT_FLUX_UNIT
 
@@ -235,8 +238,9 @@ class spectral_grid():
 		with h5py.File(absolute_path, "w") as file:
 			file.attrs["creator"] = "Ben Green"
 			file.attrs["description"] = "Collection of synthetic spectra from PHOENIX dataset"
-			file.attrs["version"] = "v0.0.0-dev" # mark this as not really having a version as of right now
-			file.attrs["date"] = str(datetime.datetime.now())
+			file.attrs["github url"] = "https://github.com/Part-III-Project-48/stellar-heterogeneity-modelling"
+			file.attrs["version"] = __version__
+			file.attrs["creation date (of this file)"] = str(datetime.datetime.now())
 			file.attrs["notes"] = "All spectra share the same wavelength grid."
 
 			# add some metadata to the QTable e.g. (wavelength medium = vacuum, source, date)
