@@ -82,13 +82,6 @@ class spectrum:
 		
 		self.Normalised_Point = normalised_point
 		self.Desired_Resolution = observational_resolution
-
-		# test astropy blackbody stuff
-		
-		# bb = models.BlackBody(temperature=temperature)
-		# plt.plot(self.Wavelengths, (bb(self.Wavelengths) * 4 * np.pi * u.sr).to(self.Fluxes.unit))
-		# plt.plot(self.Wavelengths, self.Fluxes)
-		# plt.show()
 	
 	def normalise_flux(self, normalised_point : Quantity, temperature : Quantity[u.K]) -> None:
 		"""

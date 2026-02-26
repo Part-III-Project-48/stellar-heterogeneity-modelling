@@ -1,12 +1,10 @@
 # Stellar Spectrum Decomposition using PHOENIX
 
-Cambridge Part III Project 48
-
 - PHOENIX homepage : [link](https://phoenix.astro.physik.uni-goettingen.de/)
 - PHOENIX reference paper : [link](https://arxiv.org/abs/1303.5632v2)
 - JWST MAST search : [link](https://mast.stsci.edu/search/ui/#/jwst)
 
-NOTE: the ftp links on the PHOENIX website are broken. Converting the format to start with https:// works; see spots_and_faculae_model/README.md for an example
+NOTE: the FTP links on the PHOENIX website are broken. Converting the format to start with https:// works; see below for an example URL.
 
 # Setting up the dependencies
 
@@ -47,11 +45,17 @@ Then to create the HDF5 file, just run `spots_and_faculae_model/src/phoenix_grid
 
 # Downloading other .fits files
 
+The PHOENIX paper and page talk about ftp (which is now deprecated). The files are actually found (and can be browsed) here: https://phoenix.astro.physik.uni-goettingen.de/data/. (even the http server has a welcome message which calls itself an FTP server!).
+
+I believe (rather confusingly) that the "2011" in many of the file names actually corresponds to the year of the spectral model, rather than the year of upload (which is instead just marked in the server). But the paper doesn't actually state the reasons behind their filenaming so I don't know for sure.
+
+We are using the 'HiResFITS' files currently.
+
 All .fits files are gitignored currently. This means that the wavelength grid is NOT stored in this repo and must be downloaded locally (e.g. into spectral_grids/) before recreating the HDF5 spectra grid.
 
-All other spectra downloads are performed automatically by fits_to_hdf5.py (currently), and the file format conventions for the spectra can just be read directly from within PHOENIX_filename_conventions.py.
+All other spectra downloads are performed automatically & internally by fits_to_hdf5.py. If you need them, the file format conventions for the spectra can be read directly from within PHOENIX_filename_conventions.py. (although for this code you don't need to understand the PHOENIX filenames to use this code; it deals with it all for you.)
 
-working example url format:
+example working url format:
 https://phoenix.astro.physik.uni-goettingen.de/data/HiResFITS/PHOENIX-ACES-AGSS-COND-2011/Z-0.0/lte06000-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits
 
 # Notes
