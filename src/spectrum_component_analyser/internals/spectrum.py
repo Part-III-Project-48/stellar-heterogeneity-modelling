@@ -57,7 +57,7 @@ class spectrum:
 		fluxes = np.atleast_1d(fluxes)
 		
 		if len(wavelengths) != len(fluxes):
-			raise ValueError("wavelengths and fluxes must have the same length")
+			raise ValueError("Input wavelength and flux arrays must have the same length")
 		
 		fluxes_janskys = fluxes.to(DEFAULT_FLUX_UNIT, equivalencies=u.spectral_density(wavelengths))
 
@@ -73,7 +73,7 @@ class spectrum:
 			self.regrid_flux(desired_resolution=observational_resolution)
 		
 		if normalised_point != None and temperature != None:
-			self.normalise_flux(normalised_point=normalised_point, temperature=temperature)
+			self.normalise_flux()
 
 		# sample onto a set of wavelengths (for an instrument at observational_resolution)
 		if observational_wavelengths != None:
@@ -83,14 +83,24 @@ class spectrum:
 		self.Normalised_Point = normalised_point
 		self.Desired_Resolution = observational_resolution
 	
-	def normalise_flux(self, normalised_point : Quantity, temperature : Quantity[u.K]) -> None:
+	def normalise_flux(self) -> None:
+		"""
+		normalise the average flux to 1 Jansky, in a similar vein to Passegger (2016) http://dx.doi.org/10.1051/0004-6361/201322261
+		"""
+		if (u.get_physical_type(self.Fluxes[0].unit) != u.get_physical_type(u.Jy)):
+			raise ValueError(f"fluxes are in units of {self.Fluxes.unit}. this is not in a unit convertible to janskys. no normalisation will be carried out.")
+
+		average_flux : Quantity[u.Jy] = np.average(self.Fluxes[np.where(np.isfinite(self.Fluxes))])
+		self.Fluxes /= average_flux.value
+		return
+
+	def old_normalise_flux(self, normalised_point : Quantity, temperature : Quantity[u.K]) -> None:
 		"""
 		normalise fluxes so that at normalised point, the magnitude of the flux equals its black body value
 
 		normalised_point : an astropy quantity with dimension of length
 		temperature : an astropy quantity with units of Kelvin
 		"""
-
 		if (u.get_physical_type(self.Fluxes[0].unit) != u.get_physical_type(u.Jy)):
 			raise ValueError(f"fluxes are in units of {self.Fluxes.unit}. this is not in a unit convertible to janskys. no normalisation will be carried out.")
 

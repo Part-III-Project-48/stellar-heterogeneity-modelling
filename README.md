@@ -18,11 +18,13 @@
 
 # Stellar Spectrum Decomposition using PHOENIX
 
+## Useful Links
+
 - PHOENIX homepage : https://phoenix.astro.physik.uni-goettingen.de/
 - PHOENIX reference paper : https://arxiv.org/abs/1303.5632v2
 - JWST MAST search : https://mast.stsci.edu/search/ui/#/jwst
 
-NOTE: the FTP links on the PHOENIX website are broken. Converting the format to start with https:// works; see below for an example URL.
+The FTP links on the PHOENIX website are broken. Converting the format to start with https:// works; see below for an example URL.
 
 # Setting up the dependencies
 
