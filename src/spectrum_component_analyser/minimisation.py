@@ -6,6 +6,7 @@ import scipy as sp
 from astropy.visualization import quantity_support
 
 from spectrum_component_analyser.internals.spectral_list import spectral_list
+from spectrum_component_analyser.interpolated_spectrum import get_interpolated_phoenix_spectrum
 
 quantity_support()
 from tqdm import tqdm
@@ -193,6 +194,18 @@ def plot_nicely(A, result, parameter_space, spec_grid : spectral_grid, spectrum_
         determined_spectrum.Wavelengths,
         determined_spectrum.Fluxes,
         label="Fitted Spectrum"
+    )
+
+    current_literature_belief = get_interpolated_phoenix_spectrum(
+            T_eff=3358 * u.K,
+            FeH=0.06 * u.dimensionless_unscaled,
+            Log_g=4.85 * u.dimensionless_unscaled,
+            star_name=star_name)
+
+    ax1.plot(
+        current_literature_belief.Wavelengths,
+        current_literature_belief.Fluxes,
+        label="current literature belief"
     )
 
     ax1.legend()

@@ -12,13 +12,8 @@ import numpy as np
 from scipy.interpolate import interpn
 
 from spectrum_component_analyser.internals.phoenix_spectrum import phoenix_spectrum
+from spectrum_component_analyser.internals.readers import JWST_NORMALISING_POINT
 from spectrum_component_analyser.internals.spectral_grid import spectral_grid
-
-# example values
-# T_eff = 3358 * u.K
-# FeH = 0.06 * u.dimensionless_unscaled
-# Log_g = 4.85 * u.dimensionless_unscaled
-# star_name = "LTT-3780-from-Literature"
 
 def get_interpolated_phoenix_spectrum(
         T_eff : Quantity[u.K],
@@ -44,6 +39,9 @@ def get_interpolated_phoenix_spectrum(
         v = interpn(parameter_space, spec_grid.Fluxes, desired_spectrum_parameters)
 
         interpolated_fluxes.append(v)
+
+    # reintroduce units
+    interpolated_fluxes *= spec_grid.Fluxes.unit
     
     # plt.plot(spec_grid.Wavelengths, interpolated_fluxes)
     # plt.show()
@@ -54,10 +52,24 @@ def get_interpolated_phoenix_spectrum(
         t_eff=T_eff,
         feh=FeH,
         log_g=Log_g,
-        normalising_point=None, # no normalisation / convolution
-        observational_resolution=None,
+        normalising_point=JWST_NORMALISING_POINT, 
+        observational_resolution=None, # no convolution / regridding
         observational_wavelengths=None,
         name=star_name
     )
 
     return interpolated_spectrum
+
+if __name__ == "__main__":
+    # example values
+    T_eff = 3358 * u.K
+    FeH = 0.06 * u.dimensionless_unscaled
+    Log_g = 4.85 * u.dimensionless_unscaled
+    star_name = "LTT-3780-from-Literature"
+
+    get_interpolated_phoenix_spectrum(
+        T_eff=T_eff,
+        FeH=FeH,
+        Log_g=Log_g,
+        star_name=star_name
+    ).plot()
