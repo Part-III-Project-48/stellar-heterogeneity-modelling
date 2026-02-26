@@ -29,7 +29,6 @@ FLUX_COLUMN = "flux / erg / (s * cm**2 * cm)"
 SPECTRUM_COLUMN : str = "spectrum object"
 
 def calc_fitted_spectrum(parameter_space : list[spectral_component],
-                         lookup_table,
                          spec_grid : spectral_grid,
                          mask,
                          spectrum_to_decompose,
@@ -39,7 +38,7 @@ def calc_fitted_spectrum(parameter_space : list[spectral_component],
     # A = np.empty((0, 0))
 
     def force_to_janskys(T_eff : Quantity, FeH : Quantity, log_g : Quantity, wavelengths : Sequence[Quantity], mask):
-        fluxes : Sequence[Quantity] = lookup_table[T_eff, FeH, log_g] # I don't know if this (weak) typing is actually correct, I'm guessing
+        fluxes : Sequence[Quantity] = spec_grid.LookupTable[T_eff, FeH, log_g] # I don't know if this (weak) typing is actually correct, I'm guessing
         return fluxes.to(u.Jy, equivalencies=u.spectral_density(wavelengths))[mask]
 
     # some horrendous nested typing here; im just trying to show this is a list of (list of fluxes). We only need to put the fluxes into the A matrix.

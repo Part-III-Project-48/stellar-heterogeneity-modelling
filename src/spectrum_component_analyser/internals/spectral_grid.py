@@ -117,22 +117,21 @@ def download_spectrum(T_eff,
 
 class spectral_grid():
 	"""
-	Recommended to not use this initialiser: use the wrappers such as from_internet and from_hdf5.
+	Recommended to not use this class manually, unless using the wrappers such as from_internet and from_hdf5.
 
-	This is an internal class really. It's much more human readable to just use list[spectrum]; this is just for saving to / loading from a hdf5 file.
+	This is an internal class really. It's much more human readable to just use list[spectrum] or spectral_list; this is just for saving to / loading from a hdf5 file.
 	"""
 	def __init__(self,
 			  wavelengths : Sequence[Quantity],
-			  t_effs : Sequence[Quantity],
-			  fehs : Sequence[Quantity],
-			  log_gs : Sequence[Quantity],
-			  fluxes : Sequence[Quantity],
+			  t_effs : Sequence[Quantity[u.K]],
+			  fehs : Sequence[Quantity[u.dimensionless_unscaled]],
+			  log_gs : Sequence[Quantity[u.dimensionless_unscaled]],
+			  fluxes : Sequence[Quantity], # this needs to be convertible to Janskys aka u.Jy (code will error if not)
 			  uses_regularised_wavelengths : bool,
 			  uses_regularised_temperatures : bool,
 			  _internal=False):
 		"""
-		don't use this init: use the other wrappers that download things or load in from a hdf5 file
-		(the structure of the fluxes array is non trivial)
+		Don't use this init: use the other wrappers that download things or load in from a hdf5 file (the structure of the fluxes array is non trivial)
 		"""
 
 		if (not _internal):
@@ -149,6 +148,8 @@ class spectral_grid():
 
 		self.Uses_Regularised_Wavelengths = uses_regularised_wavelengths
 		self.Uses_Regularised_Temperatures = uses_regularised_temperatures
+
+		self.LookupTable = self.to_lookup_table()
 
 	@classmethod
 	def from_internet(cls,
@@ -169,10 +170,6 @@ class spectral_grid():
 		The list of components that go into creating this spectral grid is the cartesian product of the 3 input lists.
 
 		Use this if you want a large number of spectra over a large parameter space.
-
-		---
-
-		Seems like the only data I can find is LTE data :(
 		"""
 
 		if regularised_temperatures != None:
@@ -238,7 +235,7 @@ class spectral_grid():
 		with h5py.File(absolute_path, "w") as file:
 			file.attrs["creator"] = "Ben Green"
 			file.attrs["description"] = "Collection of synthetic spectra from PHOENIX dataset"
-			file.attrs["version"] = "0.1"
+			file.attrs["version"] = "v0.0.0-dev" # mark this as not really having a version as of right now
 			file.attrs["date"] = str(datetime.datetime.now())
 			file.attrs["notes"] = "All spectra share the same wavelength grid."
 
