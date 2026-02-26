@@ -1,13 +1,20 @@
 <p align="center">
     <a href="/LICENSE" alt="License">
         <img src="https://img.shields.io/badge/License-MIT-blue.svg" /></a>
-    <img src="https://img.shields.io/github/commit-activity/m/Part-III-Project-48/stellar-heterogeneity-modelling"/>
+    <picture><img src="https://img.shields.io/github/commit-activity/m/Part-III-Project-48/stellar-heterogeneity-modelling"/></picture>
     <a href="https://www.python.org/downloads/" alt="Download Python">
-        <img src="https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FPart-III-Project-48%2Fstellar-heterogeneity-modelling%2Frefs%2Fheads%2Fmain%2Fpyproject.toml" /></a>
-    <img src="https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FPart-III-Project-48%2Fstellar-heterogeneity-modelling%2Fmain%2Fpyproject.toml&query=%24.project.version&label=version"/>
-    <img src="https://img.shields.io/github/languages/code-size/Part-III-Project-48/stellar-heterogeneity-modelling"/>
-    <img src="https://img.shields.io/github/repo-size/Part-III-Project-48/stellar-heterogeneity-modelling"/>
+        <img src="https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FPart-III-Project-48%2Fstellar-heterogeneity-modelling%2Frefs%2Fheads%2Fmain%2Fpyproject.toml&logo=python&logoColor=white"/></a>
+    <a href="/pyproject.toml" alt="Poetry Package Version">
+        <img src="https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FPart-III-Project-48%2Fstellar-heterogeneity-modelling%2Fmain%2Fpyproject.toml&query=%24.project.version&label=version"/></a>
 </p>
+<p align="center">
+    <picture><img src="https://img.shields.io/github/languages/code-size/Part-III-Project-48/stellar-heterogeneity-modelling"/></picture>
+    <picture><img src="https://img.shields.io/github/repo-size/Part-III-Project-48/stellar-heterogeneity-modelling"/></picture>
+    <a href="https://www.conventionalcommits.org/en/v1.0.0/" alt="Conventional Commits">
+        <img src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-%23FE5196?style=flat-square&logo=conventionalcommits"/></a>
+</p>
+
+<!-- See here for prevent images showing as links to opening the image in a new tab on Github : https://stackoverflow.com/questions/40625614/is-it-possible-to-disable-the-automatic-linking-of-images-in-github-markdown-ren -->
 
 # Stellar Spectrum Decomposition using PHOENIX
 
@@ -75,7 +82,7 @@ https://phoenix.astro.physik.uni-goettingen.de/data/HiResFITS/PHOENIX-ACES-AGSS-
 - there appears to be 1,569,128 wavelength points in total in the PHOENIX fits files I've checked
 - JWST Stage 2 products are specified in vacuum wavelength [source](https://jwst-docs.stsci.edu/accessing-jwst-data/jwst-science-data-overview#gsc.tab=0:~:text=Note%20that%20spectroscopic%20data%20products%20have%20wavelengths%20given%20in%20the%20barycentric%20vacuum%20rest%20frame)
 
-# Conventions
+<!-- # Conventions
 
 ## Commit Types
 
@@ -113,4 +120,4 @@ chore: remove .vscode folder from git tracking (cache)
 
 This project follows the [Conventional Commits specification v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/#summary).
 
-Some of the commit types listed above are from the [Angular Commit Message Guidelines](https://github.com/angular/angular/blob/22b96b9/CONTRIBUTING.md#-commit-message-guidelines). That link also gives some general guidelines for message formatting that I think are nice.
+Some of the commit types listed above are from the [Angular Commit Message Guidelines](https://github.com/angular/angular/blob/22b96b9/CONTRIBUTING.md#-commit-message-guidelines). That link also gives some general guidelines for message formatting that I think are nice. -->
