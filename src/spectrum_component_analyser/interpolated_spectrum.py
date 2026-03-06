@@ -19,12 +19,9 @@ def get_interpolated_phoenix_spectrum(
         T_eff : Quantity[u.K],
         FeH : Quantity[u.dimensionless_unscaled],
         Log_g : Quantity[u.dimensionless_unscaled],
-        star_name : str
+        star_name : str,
+        spec_grid : spectral_grid
     ) -> phoenix_spectrum:
-
-    spectral_grid_relative_path = Path("../../../spectral_grids/JWST_convolved_not_oversmoothed.hdf5")
-    spectral_grid_absolute_path = (__file__ / spectral_grid_relative_path).resolve()
-    spec_grid : spectral_grid = spectral_grid.from_hdf5(absolute_path=spectral_grid_absolute_path)
 
     parameter_space : Tuple[
         Sequence[Quantity[u.K]], Sequence[Quantity[u.K]], Sequence[Quantity[u.K]]
@@ -36,11 +33,13 @@ def get_interpolated_phoenix_spectrum(
     for w in spec_grid.Wavelengths:
         desired_spectrum_parameters : Tuple[float, float, float, float] = [T_eff.value, FeH.value, Log_g.value, w.value] # if only numpy supported units :(
 
-        v = interpn(parameter_space, spec_grid.Fluxes, desired_spectrum_parameters)
+        f = spec_grid.Fluxes
 
-        interpolated_fluxes.append(v)
+        v : np.ndarray = interpn(parameter_space, f, desired_spectrum_parameters)
 
-    # reintroduce units
+        interpolated_fluxes.append(*v) # unpack v as it is returned as a 1-element np.ndarray
+
+    # reintroduce unitsW
     interpolated_fluxes *= spec_grid.Fluxes.unit
     
     # plt.plot(spec_grid.Wavelengths, interpolated_fluxes)
@@ -53,7 +52,7 @@ def get_interpolated_phoenix_spectrum(
         feh=FeH,
         log_g=Log_g,
         normalising_point=JWST_NORMALISING_POINT, 
-        observational_resolution=None, # no convolution / regridding
+        observational_resolution=None, # no convolution / regridding - as the spectrum should already be convoluted to JWST
         observational_wavelengths=None,
         name=star_name
     )
