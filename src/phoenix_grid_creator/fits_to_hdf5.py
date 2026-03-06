@@ -11,7 +11,8 @@ from pathlib import Path
 # internal imports
 from spectrum_component_analyser.internals.spectral_grid import spectral_grid
 from spectrum_component_analyser.internals.spectrum import spectrum
-from spectrum_component_analyser.internals.readers import read_JWST_fits, read_HARPS_fits, JWST_RESOLUTION, HARPS_resolution, JWST_NORMALISING_POINT, HARPS_normalising_point
+from spectrum_component_analyser.internals.readers.JWST import read_JWST_fits, JWST_RESOLUTION, JWST_NORMALISING_POINT
+from spectrum_component_analyser.internals.readers.HARPS import read_HARPS_fits, HARPS_resolution, HARPS_normalising_point
 
 SPECTRAL_GRID_FILENAME : Path = Path("test_JWST_not_oversmoothed.hdf5")
 

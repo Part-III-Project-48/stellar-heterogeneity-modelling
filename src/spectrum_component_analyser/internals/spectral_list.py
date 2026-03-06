@@ -4,7 +4,7 @@ import numpy as np
 from tqdm import tqdm
 
 from spectrum_component_analyser.internals.phoenix_spectrum import phoenix_spectrum
-from spectrum_component_analyser.internals.readers import JWST_NORMALISING_POINT, JWST_RESOLUTION
+from spectrum_component_analyser.internals.readers.JWST import JWST_NORMALISING_POINT, JWST_RESOLUTION
 from spectrum_component_analyser.internals.spectral_component import spectral_component
 from spectrum_component_analyser.internals.spectral_grid import download_spectrum, get_wavelength_grid
 
