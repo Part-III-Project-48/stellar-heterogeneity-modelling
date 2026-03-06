@@ -72,8 +72,9 @@ class spectrum:
 		if observational_resolution != None:
 			self.regrid_flux(desired_resolution=observational_resolution)
 		
-		if normalised_point != None and temperature != None:
-			self.normalise_flux()
+		# if normalised_point != None and temperature != None:
+		# 	self.normalise_flux()
+		self.normalise_flux()
 
 		# sample onto a set of wavelengths (for an instrument at observational_resolution)
 		if observational_wavelengths != None:
@@ -164,13 +165,11 @@ class spectrum:
 				  observational_resolution=None,
 				  observational_wavelengths=None,
 				  temperature=None)
-	def plot(self, clear : bool = True, show : bool = True):
+	def plot(self, clear : bool = True):
 		if clear:
 			plt.clf()
 		plt.title(f"Observational Spectrum for {self.Name}")
-		plt.plot(self.Wavelengths, self.Fluxes)
-		if show:
-			plt.show()
+		plt.plot(self.Wavelengths, self.Fluxes, label=self.Name)
 	
 	def __len__(self):
 		if len(self.Wavelengths) != len(self.Fluxes):
