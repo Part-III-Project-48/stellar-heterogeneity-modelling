@@ -4,13 +4,13 @@ import numpy as np
 from tqdm import tqdm
 
 from spectrum_component_analyser.internals.phoenix_spectrum import phoenix_spectrum
-from spectrum_component_analyser.internals.readers import JWST_NORMALISING_POINT, JWST_RESOLUTION
+from spectrum_component_analyser.internals.readers.JWST import JWST_NORMALISING_POINT, JWST_RESOLUTION
 from spectrum_component_analyser.internals.spectral_component import spectral_component
 from spectrum_component_analyser.internals.spectral_grid import download_spectrum, get_wavelength_grid
 
 class spectral_list():
 	"""
-	This class is designed for storing e.g. 5 or so spectral components so I'm not going to implement save / loading to hdf5 for it. If you need more spectra, use a spectral grid instead.
+	This class is designed for downloading e.g. 5 or so spectral components so I'm not going to implement save / loading to hdf5 for it. If you need more spectra, use a spectral grid instead.
 	"""
 	def __init__(
 			self,

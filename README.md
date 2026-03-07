@@ -1,3 +1,7 @@
+<h1 align="center">
+    Stellar Spectrum Decomposition using PHOENIX
+</h1>
+
 <p align="center">
     <a href="/LICENSE" alt="License">
         <img src="https://img.shields.io/badge/License-MIT-blue.svg" /></a>
@@ -16,7 +20,6 @@
 
 <!-- See here for prevent images showing as links to opening the image in a new tab on Github : https://stackoverflow.com/questions/40625614/is-it-possible-to-disable-the-automatic-linking-of-images-in-github-markdown-ren -->
 
-# Stellar Spectrum Decomposition using PHOENIX
 
 ## Useful Links
 
