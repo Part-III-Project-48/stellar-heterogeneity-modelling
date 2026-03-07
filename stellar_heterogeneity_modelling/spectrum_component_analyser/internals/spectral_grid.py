@@ -26,6 +26,7 @@ from phoenix_grid_creator.PHOENIX_filename_conventions import *
 from spectrum_component_analyser.internals.phoenix_spectrum import phoenix_spectrum
 from spectrum_component_analyser.internals.spectral_component import spectral_component
 from spectrum_component_analyser.internals.spectrum import DEFAULT_FLUX_UNIT
+from internal_constants import *
 
 PHOENIX_FLUX_UNITS = u.erg / (u.s * u.cm**2 * u.cm)
 
@@ -278,8 +279,11 @@ class spectral_grid():
 		print("[PHOENIX GRID CREATOR] : hdf5 saving complete")
 
 	@classmethod
-	def from_hdf5(cls, absolute_path : Path):
-		with h5py.File(absolute_path, "r") as f:
+	def from_hdf5(cls, grid_name : str):
+		"""
+		grid_name: name of the file found in spectral_grids folder
+		"""
+		with h5py.File((spectral_grids_path / grid_name).resolve(), "r") as f:
 			main_grid = f[MAIN_GRID_NAME]
 
 			wavelengths = main_grid[WAVELENGTH_DATASET_NAME]

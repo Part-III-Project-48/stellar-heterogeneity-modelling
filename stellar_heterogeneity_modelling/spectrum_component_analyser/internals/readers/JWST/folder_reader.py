@@ -8,7 +8,7 @@ import typer
 from spectrum_component_analyser.internals.readers.JWST.instruments import Instrument, NIRISS, NIRSPEC 
 from spectrum_component_analyser.internals.readers.JWST.file_reader import JWSTFileReader
 from spectrum_component_analyser.internals.spectrum import spectrum
-from internal_constants import package_path
+from internal_constants import *
 
 from vanity.printing_colors import *
 
@@ -20,15 +20,15 @@ class JWSTTargets(Enum):
 
 class JWSTFolderReader():
 	@staticmethod
+	def get_file_path(target : JWSTTargets, instrument : Instrument) -> Path:
+		return Path(f"{package_path}/neater_observed_spectra_folder/{target.value}/{instrument.FolderPath}/")
+	
+	@staticmethod
 	def get_all_spectra(target : JWSTTargets, instrument : Instrument) -> list[spectrum]:
 		"""
 		returns all spectra from all .fits files contained in fits_directory (specification is in get_file_path() and also a markdown file)
 		"""
-
-		def get_file_path(target : JWSTTargets, instrument : Instrument) -> Path:
-			return Path(f"{package_path}/neater_observed_spectra_folder/{target.value}/{instrument.FolderPath}/")
-
-		fits_directory : Path = get_file_path(target, instrument)
+		fits_directory : Path = JWSTFolderReader.get_file_path(target, instrument)
 
 		print(fits_directory)
 
@@ -48,6 +48,9 @@ class JWSTFolderReader():
 		return all_spectra
 
 def main() -> None:
+	"""
+	example usage
+	"""
 	niriss_spectra = []
 	nirspec_spectra = []
 	niriss_spectra = JWSTFolderReader.get_all_spectra(JWSTTargets.TRAPPIST1, NIRISS)

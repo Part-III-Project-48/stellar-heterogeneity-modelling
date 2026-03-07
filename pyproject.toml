@@ -31,6 +31,11 @@ dependencies = [
 [project.urls]
 repository="https://github.com/Part-III-Project-48/stellar-heterogeneity-modelling"
 
+[tool.poetry]
+# Provide some shortened names for subpackages
+packages = [{include = "phoenix_grid_creator", from = "stellar_heterogeneity_modelling"},
+			{include = "spectrum_component_analyser", from = "stellar_heterogeneity_modelling"}]
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
