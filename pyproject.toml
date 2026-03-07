@@ -3,8 +3,10 @@ name = "stellar_heterogeneity_modelling"
 version = "0.0.0.dev0"
 description = ""
 authors = [
-    {name = "BenBlueeeee",email = "benjaminleogreen@gmail.com"}
+    {name = "ScatteredComet",email = "benjaminleogreen@gmail.com"}
 ]
+license="MIT"
+license-files=["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
 dependencies = [
@@ -26,9 +28,8 @@ dependencies = [
     "typer (>=0.24.1,<0.25.0)"
 ]
 
-[tool.poetry]
-packages = [{include = "phoenix_grid_creator", from = "src"},
-			{include = "spectrum_component_analyser", from = "src"}]
+[project.urls]
+repository="https://github.com/Part-III-Project-48/stellar-heterogeneity-modelling"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

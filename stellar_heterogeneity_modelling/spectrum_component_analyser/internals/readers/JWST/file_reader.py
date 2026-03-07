@@ -14,8 +14,9 @@ from spectrum_component_analyser.internals.spectrum import spectrum
 
 JWST_NORMALISING_POINT = 1.1 * u.um # believe this is unused
 
-class JWSTReader():
-	def get_spectrum(self, file_path : Path, instrument : Instrument, INTEGRATION_INDEX : int = 0, name="Observational JWST NIRISS spectrum", verbose : bool = False) -> spectrum:
+class JWSTFileReader():
+	@staticmethod
+	def get_spectrum(file_path : Path, instrument : Instrument, INTEGRATION_INDEX : int = 0, name="Observational JWST NIRISS spectrum", verbose : bool = False) -> spectrum:
 		"""
 		returns the spectrum at the given INTEGRATION_INDEX from the specified .fits file
 		"""
@@ -40,7 +41,8 @@ class JWSTReader():
 		
 		return spec
 
-	def get_all_spectra(self, file_path : Path, instrument : Instrument, name : str = "Observational JWST NIRISS spectrum", verbose : bool = False) -> list[spectrum]:
+	@staticmethod
+	def get_all_spectra(file_path : Path, instrument : Instrument, name : str = "Observational JWST NIRISS spectrum", verbose : bool = False) -> list[spectrum]:
 		"""
 		returns all spectra from the specified .fits file
 		
