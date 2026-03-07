@@ -281,7 +281,10 @@ class spectral_grid():
 	@classmethod
 	def from_hdf5(cls, grid_name : str):
 		"""
-		grid_name: name of the file found in spectral_grids folder
+		Parameters
+		----------
+		grid_name
+			name of the file to be loaded in from the spectral_grids folder
 		"""
 		with h5py.File((spectral_grids_path / grid_name).resolve(), "r") as f:
 			main_grid = f[MAIN_GRID_NAME]
