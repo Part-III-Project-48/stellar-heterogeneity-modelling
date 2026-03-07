@@ -9,7 +9,7 @@ from astropy.units import Quantity
 import astropy.units as u
 from matplotlib import pyplot as plt
 import numpy as np
-from scipy.interpolate import interpn
+from scipy.interpolate import RegularGridInterpolator, interpn
 
 from spectrum_component_analyser.internals.phoenix_spectrum import phoenix_spectrum
 from spectrum_component_analyser.internals.readers.JWST.file_reader import JWST_NORMALISING_POINT
@@ -23,24 +23,64 @@ def get_interpolated_phoenix_spectrum(
         spec_grid : spectral_grid
     ) -> phoenix_spectrum:
 
+    interp = RegularGridInterpolator(
+        (
+            spec_grid.T_effs.value,
+            spec_grid.FeHs.value,
+            spec_grid.Log_gs.value
+        ),
+        spec_grid.Fluxes,
+        bounds_error=False,
+        fill_value=True
+    )
+
+    params = np.array(
+        [
+            [T_eff.value, FeH.value, Log_g.value]
+        ]
+    )
+
+    interpolated_fluxes = interp(params)[0] * spec_grid.Fluxes.unit
+
+    interpolated_spectrum : phoenix_spectrum = phoenix_spectrum(
+        wavelengths=spec_grid.Wavelengths,
+        fluxes=interpolated_fluxes,
+        t_eff=T_eff,
+        feh=FeH,
+        log_g=Log_g,
+        normalising_point=JWST_NORMALISING_POINT, 
+        observational_resolution=None, # no convolution / regridding - as the spectrum should already be convoluted to JWST
+        observational_wavelengths=None,
+        name=star_name
+    )
+
+    return interpolated_spectrum 
+
+def old_get_interpolated_phoenix_spectrum(
+        T_eff : Quantity[u.K],
+        FeH : Quantity[u.dimensionless_unscaled],
+        Log_g : Quantity[u.dimensionless_unscaled],
+        star_name : str,
+        spec_grid : spectral_grid
+    ) -> phoenix_spectrum:
+    """
+    old method
+    """
     parameter_space : Tuple[
         Sequence[Quantity[u.K]], Sequence[Quantity[u.K]], Sequence[Quantity[u.K]]
         ] = (spec_grid.T_effs, spec_grid.FeHs, spec_grid.Log_gs, spec_grid.Wavelengths)
 
-    interpolated_fluxes = []
+    w = spec_grid.Wavelengths.value
 
-    # kinda a bodge but its okay for now
-    for w in spec_grid.Wavelengths:
-        desired_spectrum_parameters : Tuple[float, float, float, float] = [T_eff.value, FeH.value, Log_g.value, w.value] # if only numpy supported units :(
+    interpolation_points = np.column_stack([
+        np.full_like(w, T_eff.value),
+        np.full_like(w, FeH.value),
+        np.full_like(w, Log_g.value),
+        w
+    ])
 
-        f = spec_grid.Fluxes
-
-        v : np.ndarray = interpn(parameter_space, f, desired_spectrum_parameters)
-
-        interpolated_fluxes.append(*v) # unpack v as it is returned as a 1-element np.ndarray
-
-    # reintroduce unitsW
-    interpolated_fluxes *= spec_grid.Fluxes.unit
+    # remember to reintroduce units
+    interpolated_fluxes = interpn(parameter_space, spec_grid.Fluxes, interpolation_points) * spec_grid.Fluxes.unit
     
     # plt.plot(spec_grid.Wavelengths, interpolated_fluxes)
     # plt.show()
