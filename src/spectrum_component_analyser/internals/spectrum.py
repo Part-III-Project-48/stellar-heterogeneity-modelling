@@ -1,7 +1,7 @@
 """
 super simple class that just wraps 2 arrays for arbitrary x, y axes for a spectrum
 
-also has some util functions for working with spectra in general
+also has some util functions for working with spectra in general e.g. normalisation, convolution to a given resolution
 """
 
 import numpy as np
@@ -16,8 +16,6 @@ import warnings
 from scipy.ndimage import gaussian_filter1d
 from astropy.modeling import models
 
-## can do : update normalise jansksys to act on the spectrum class self and then update main.ipynb to use that
-
 DEFAULT_FLUX_UNIT = u.Jy
 
 class spectrum:
@@ -28,7 +26,7 @@ class spectrum:
 			normalised_point : Quantity,
 			observational_resolution : Quantity,
 			observational_wavelengths : np.ndarray,
-			temperature,
+			temperature : Quantity[u.K],
 			name : str = None
 		):
 		"""

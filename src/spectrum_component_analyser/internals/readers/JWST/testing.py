@@ -13,6 +13,9 @@ from vanity.printing_colors import *
 
 class JWSTTargets(Enum):
 	LTT3780 = "LTT 3780"
+	LTT144A = "LTT 1445A"
+	K218 = "K2-18"
+	TRAPPIST1 = "TRAPPIST-1"
 
 def read_all_JWST_fits(target : JWSTTargets, instrument : Instrument) -> list[spectrum]:
 	"""
@@ -36,9 +39,10 @@ def read_all_JWST_fits(target : JWSTTargets, instrument : Instrument) -> list[sp
 	return all_spectra
 
 def main() -> None:
-	niriss_spectra = read_all_JWST_fits(JWSTTargets.LTT3780, NIRISS)
-	nirspec_spectra = read_all_JWST_fits(JWSTTargets.LTT3780, NIRSPEC)
 	niriss_spectra = []
+	nirspec_spectra = []
+	niriss_spectra = read_all_JWST_fits(JWSTTargets.TRAPPIST1, NIRISS)
+	# nirspec_spectra = read_all_JWST_fits(JWSTTargets.LTT3780, NIRSPEC)
 
 	all_spectra = [*nirspec_spectra, *niriss_spectra]
 
